@@ -7,22 +7,21 @@ import { Prisma } from '@prisma/client'
 import { getTenantContext, TenantContextError } from './tenant-context'
 
 // Models that have organization_id and must be tenant-scoped
+// Prisma $allModels provides PascalCase names (e.g. 'Team', 'AuditLog')
 const TENANT_SCOPED_MODELS = new Set([
-  'organizationMembership',
-  'team',
-  'teamMember',
-  'setting',
-  'file',
-  'auditLog',
-  'notification',
-  'organizationDomain',
-  'organizationModule',
-] as const)
+  'OrganizationMembership',
+  'Team',
+  'TeamMember',
+  'Setting',
+  'File',
+  'AuditLog',
+  'Notification',
+  'OrganizationDomain',
+  'OrganizationModule',
+])
 
-type TenantScopedModel = (typeof TENANT_SCOPED_MODELS)[number]
-
-function isTenantScoped(model: string): model is TenantScopedModel {
-  return TENANT_SCOPED_MODELS.has(model as TenantScopedModel)
+function isTenantScoped(model: string): boolean {
+  return TENANT_SCOPED_MODELS.has(model)
 }
 
 /**

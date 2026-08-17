@@ -78,7 +78,7 @@ export async function POST(
     // Assign role if provided
     if (roleSlug) {
       const role = await db.role.findFirst({
-        where: { organizationId: id, slug: roleSlug } },
+        where: { organizationId: id, slug: roleSlug }
       })
       if (role) {
         await db.membershipRole.create({
