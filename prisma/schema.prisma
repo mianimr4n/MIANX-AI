@@ -1,0 +1,290 @@
+// ══════════════════════════════════════════════════════════════════
+// MIANX.AI — Core Database Schema v1.0
+// Multi-Tenant, Multi-Domain, AI-Native Business Operating System
+// ══════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── ENUMS ──────────────────────────────────────────────────────
+
+enum OrganizationStatus {
+  active
+  suspended
+  trial
+  archived
+}
+
+enum MembershipStatus {
+  active
+  suspended
+  removed
+  invited
+}
+
+enum ActorType {
+  user
+  agent
+  system
+}
+
+// ── CORE TABLES ────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  status    OrganizationStatus @default(active)
+  timezone  String   @default("UTC")
+  locale    String   @default("en")
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships     OrganizationMembership[]
+  teams           Team[]
+  roles           Role[]
+  settings        Setting[]
+  files           File[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  domains         OrganizationDomain[]
+  modules         OrganizationModule[]
+}
+
+model Profile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  displayName String?
+  avatarUrl  String?
+  locale     String   @default("en")
+  timezone   String   @default("UTC")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  memberships OrganizationMembership[]
+}
+
+model OrganizationMembership {
+  id             String             @id @default(cuid())
+  organizationId String
+  userId         String
+  status         MembershipStatus   @default(invited)
+  joinedAt       DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  profile       Profile         @relation(fields: [userId], references: [userId])
+  roles         MembershipRole[]
+  teamMembers   TeamMember[]
+
+  @@unique([organizationId, userId])
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  members      TeamMember[]
+}
+
+model TeamMember {
+  id             String @id @default(cuid())
+  teamId         String
+  membershipId   String
+  createdAt      DateTime @default(now())
+
+  team       Team                   @relation(fields: [teamId], references: [id])
+  membership OrganizationMembership @relation(fields: [membershipId], references: [id])
+
+  @@unique([teamId, membershipId])
+}
+
+model Role {
+  id             String  @id @default(cuid())
+  organizationId String?
+  name           String
+  slug           String
+  description    String?
+  isSystem       Boolean @default(false)
+
+  organization Organization?  @relation(fields: [organizationId], references: [id])
+  permissions   RolePermission[]
+  memberships   MembershipRole[]
+
+  @@unique([organizationId, slug])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model MembershipRole {
+  membershipId String
+  roleId       String
+
+  membership OrganizationMembership @relation(fields: [membershipId], references: [id])
+  role       Role                   @relation(fields: [roleId], references: [id])
+
+  @@unique([membershipId, roleId])
+}
+
+model Setting {
+  id             String @id @default(cuid())
+  organizationId String
+  scopeType      String
+  scopeId        String?
+  key            String
+  value          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, scopeType, scopeId, key])
+}
+
+model File {
+  id             String   @id @default(cuid())
+  organizationId String
+  uploadedBy     String
+  name           String
+  storagePath    String
+  mimeType       String?
+  size           Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  organizationId String
+  actorType     ActorType
+  actorId       String
+  action        String
+  resourceType  String
+  resourceId    String?
+  metadata      String?
+  createdAt     DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Notification {
+  id              String    @id @default(cuid())
+  organizationId String
+  recipientUserId String
+  type            String
+  title           String
+  body            String?
+  data            String?
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+// ── DOMAIN ENGINE TABLES ───────────────────────────────────────
+
+enum DomainStatus {
+  draft
+  available
+  deprecated
+  archived
+}
+
+enum ModuleStatus {
+  draft
+  available
+  disabled
+  deprecated
+}
+
+model Domain {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  version     String
+  description String?
+  status      DomainStatus @default(draft)
+  manifest    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  organizationDomains OrganizationDomain[]
+  modules             Module[]
+}
+
+model OrganizationDomain {
+  id             String       @id @default(cuid())
+  organizationId String
+  domainId       String
+  status         String       @default("active")
+  configuration  String?
+  activatedAt    DateTime?
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  domain       Domain       @relation(fields: [domainId], references: [id])
+
+  @@unique([organizationId, domainId])
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  domainId    String
+  name        String
+  slug        String
+  version     String
+  description String?
+  status      ModuleStatus @default(draft)
+  manifest    String?
+
+  domain Domain @relation(fields: [domainId], references: [id])
+  orgModules OrganizationModule[]
+
+  @@unique([domainId, slug])
+}
+
+model OrganizationModule {
+  id             String   @id @default(cuid())
+  organizationId String
+  moduleId       String
+  status         String   @default("active")
+  configuration  String?
+  activatedAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  module       Module       @relation(fields: [moduleId], references: [id])
+
+  @@unique([organizationId, moduleId])
+}
