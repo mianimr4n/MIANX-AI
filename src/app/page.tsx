@@ -60,7 +60,9 @@ export default function HomePage() {
   const [orgs, setOrgs] = useState<OrgData | null>(null)
   const [isolation, setIsolation] = useState<IsolationResult | null>(null)
   const [isolationLoading, setIsolationLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'database' | 'tenancy' | 'architecture'>('overview')
+  const [authTestResult, setAuthTestResult] = useState<IsolationResult | null>(null)
+  const [authTestLoading, setAuthTestLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
 
   const fetchData = useCallback(() => {
     fetch('/api/health').then(r => r.json()).then(setHealth).catch(() => {})
@@ -84,7 +86,22 @@ export default function HomePage() {
   }
 
   const completedPhases = PHASES.filter(p => p.status === 'completed').length
-  const progressPct = Math.round(((completedPhases + 0.5) / PHASES.length) * 100) // 0.5 for in-progress
+  const inProgressPhases = PHASES.filter(p => p.status === 'in-progress').length
+  const progressPct = Math.round(((completedPhases + inProgressPhases * 0.5) / PHASES.length) * 100)
+
+  const runAuthTest = async () => {
+    setAuthTestLoading(true)
+    setAuthTestResult(null)
+    try {
+      const res = await fetch('/api/test/authorization', { method: 'POST' })
+      const data = await res.json()
+      setAuthTestResult(data.data)
+    } catch {
+      setAuthTestResult(null)
+    } finally {
+      setAuthTestLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -121,7 +138,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
-                    Phase 1: Database & Tenancy
+                    Phase 2: Identity & Authorization
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Multi-Tenant, Multi-Domain, AI-Native Business Operating System
@@ -142,8 +159,8 @@ export default function HomePage() {
                 <Progress value={progressPct} className="h-2" />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                   <StatCard label="Organizations" value={orgs ? orgs.length.toString() : '...'} icon={Building2} />
-                  <StatCard label="Core Tables" value={CORE_TABLES.length.toString()} icon={Table2} />
-                  <StatCard label="Isolation Tests" value={isolation ? `${isolation.summary.passed}/${isolation.summary.total}` : '—'} icon={ShieldCheck} />
+                  <StatCard label="API Routes" value="18" icon={Globe} />
+                  <StatCard label="Auth Tests" value={authTestResult ? `${authTestResult.summary.passed}/${authTestResult.summary.total}` : '—'} icon={ShieldCheck} />
                   <StatCard label="API Latency" value={health ? `${health.checks.api.latency_ms}ms` : '...'} icon={Activity} />
                 </div>
               </div>
@@ -153,7 +170,7 @@ export default function HomePage() {
 
         {/* ── Tab Navigation ── */}
         <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit overflow-x-auto">
-          {(['overview', 'database', 'tenancy', 'architecture'] as const).map(tab => (
+          {(['overview', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -179,6 +196,15 @@ export default function HomePage() {
               <DatabaseTab />
             </motion.div>
           )}
+          {activeTab === 'authorization' && (
+            <motion.div key="authorization" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
+              <AuthorizationTab
+                authTestResult={authTestResult}
+                authTestLoading={authTestLoading}
+                onRunTest={runAuthTest}
+              />
+            </motion.div>
+          )}
           {activeTab === 'tenancy' && (
             <motion.div key="tenancy" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
               <TenancyTab
@@ -200,7 +226,7 @@ export default function HomePage() {
       <footer className="mt-auto border-t border-border/50 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-muted-foreground">
           <span>Mianx.ai v{APP_VERSION} — Build the Core once. Build unlimited Business OS products on top.</span>
-          <span>Phase 1 / 11</span>
+          <span>Phase 2 / 11</span>
         </div>
       </footer>
     </div>

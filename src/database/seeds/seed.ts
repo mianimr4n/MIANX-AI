@@ -85,16 +85,32 @@ async function main() {
   ])
   console.log(`  ✓ Created ${permissions.length} permissions`)
 
-  // ── Assign permissions to Owner role (all permissions per org) ──
+  // ── Assign permissions to Owner (all) and Admin (all except delete) roles ──
   for (const org of orgs) {
     const ownerRole = roles.find(r => r.organizationId === org.id && r.slug === 'owner')!
+    const adminRole = roles.find(r => r.organizationId === org.id && r.slug === 'admin')!
     await Promise.all(
       permissions.map(p =>
         prisma.rolePermission.create({ data: { roleId: ownerRole.id, permissionId: p.id } })
       )
     )
+    // Admin gets all permissions except destructive ones
+    const adminPerms = permissions.filter(p => !p.key.includes('delete'))
+    await Promise.all(
+      adminPerms.map(p =>
+        prisma.rolePermission.create({ data: { roleId: adminRole.id, permissionId: p.id } })
+      )
+    )
+    // Member gets view permissions
+    const memberRole = roles.find(r => r.organizationId === org.id && r.slug === 'member')!
+    const memberPerms = permissions.filter(p => p.key.endsWith('.view'))
+    await Promise.all(
+      memberPerms.map(p =>
+        prisma.rolePermission.create({ data: { roleId: memberRole.id, permissionId: p.id } })
+      )
+    )
   }
-  console.log('  ✓ Assigned all permissions to Owner roles')
+  console.log('  ✓ Assigned permissions to Owner/Admin/Member roles')
 
   // ── Assign roles to memberships ──
   await Promise.all([

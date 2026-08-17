@@ -23,7 +23,7 @@ export async function GET() {
     status: 'healthy',
     app: 'mianx-ai',
     version: '0.1.0',
-    phase: 0,
+    phase: 2,
     checks: {
       database: { status: dbStatus, latency_ms: dbLatencyMs },
       api: { status: 'ok', latency_ms: totalLatency },
