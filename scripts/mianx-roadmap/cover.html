@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 794px; height: 1123px; margin: 0; padding: 0; background: #ffffff; font-family: 'Inter', sans-serif; }
+  .cover-page { position: relative; width: 794px; height: 1123px; border: none; outline: none; box-shadow: none; }
+  .layer-base { position: absolute; inset: 0; z-index: 0; background: #ffffff; }
+  .layer-bg { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+  .grid-pattern {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(69,102,118,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(69,102,118,0.02) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  .layer-structure { position: absolute; inset: 0; z-index: 2; }
+  .anchor-line {
+    position: absolute;
+    left: 134px;
+    top: 112px;
+    bottom: 112px;
+    width: 6px;
+    background: #456676;
+    border-radius: 3px;
+  }
+  .layer-content { position: absolute; inset: 0; z-index: 3; }
+  .kicker {
+    position: absolute;
+    top: 180px;
+    left: 180px;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    color: rgba(69,102,118,0.6);
+    text-transform: uppercase;
+  }
+  .hero-title {
+    position: absolute;
+    top: 240px;
+    left: 180px;
+    width: 480px;
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1.0;
+    color: #17191a;
+  }
+  .hero-subtitle {
+    position: absolute;
+    top: 310px;
+    left: 180px;
+    width: 480px;
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1.0;
+    color: #2b6887;
+  }
+  .summary {
+    position: absolute;
+    top: 580px;
+    left: 180px;
+    width: 480px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: rgba(23,25,26,0.75);
+  }
+  .meta {
+    position: absolute;
+    top: 780px;
+    left: 180px;
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(23,25,26,0.6);
+  }
+  .meta span { margin-right: 24px; }
+  .footer-kicker {
+    position: absolute;
+    top: 1011px;
+    left: 180px;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: rgba(69,102,118,0.45);
+    text-transform: uppercase;
+  }
+  @media screen {
+    html { height: auto; display: flex; justify-content: center; }
+    body { transform-origin: top center; scale: min(1, calc(100vh / 1123)); margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+<div class="cover-page">
+  <div class="layer-base"></div>
+  <div class="layer-bg">
+    <div class="grid-pattern"></div>
+  </div>
+  <div class="layer-structure">
+    <div class="anchor-line"></div>
+  </div>
+  <div class="layer-content">
+    <div class="kicker">Development Roadmap</div>
+    <div class="hero-title">MIANX.AI</div>
+    <div class="hero-subtitle">CORE PLATFORM</div>
+    <div class="summary">
+      32-week phase-by-phase implementation plan for the multi-tenant, multi-domain, AI-native business operating system. Covers database, identity, authorization, AI engine, automation, billing, frontend, and Poultry OS.
+    </div>
+    <div class="meta">
+      <span>Version 1.0</span>
+      <span>August 2026</span>
+    </div>
+    <div class="footer-kicker">Build the Core once. Build unlimited Business OS products on top.</div>
+  </div>
+</div>
+</body>
+</html>
