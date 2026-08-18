@@ -246,3 +246,52 @@ Stage Summary:
 - Responsive: desktop/tablet/mobile layouts verified
 - 0 new lint errors introduced (3 pre-existing errors from earlier phases remain)
 - Screenshot saved: /home/z/my-project/download/mianx-phase8-frontend.png
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Phase 9 — Observability and Operations (complete build)
+
+Work Log:
+- Audited existing codebase: no observability module existed (greenfield build)
+- Read Phase 9 roadmap definition (12 tasks) and full Observability Specification (65 sections)
+- Identified all 13 gaps against spec
+- Created src/core/observability/ module with 7 files:
+  - redact.ts: Telemetry data redaction (sensitive field detection, pattern matching, header redaction)
+  - logger.ts: Structured JSON logger with correlation ID propagation, child loggers, production level filtering, 19 predefined app events
+  - errors.ts: Error classification (10 categories, 30+ error codes), fingerprinting, MianxAppError custom class with factory methods
+  - metrics.ts: In-memory metrics registry (counters, histograms with 10 latency buckets, gauges), percentile estimation, pre-defined metric names for HTTP/DB/Jobs/Workflows/AI/Quality/Safety/Business
+  - ai-telemetry.ts: AI run recording (quality signals: tool success, task completion, approval rates; safety signals: policy denials, loop detection, excessive retries; cost tracking per model/org/domain)
+  - alerts.ts: Alert routing system (P1-P4 severity, deduplication with 5-min window, acknowledge/resolve lifecycle, owner-based routing, active P1 detection)
+  - incidents.ts: Incident model (6-state lifecycle: detected→acknowledged→investigating→mitigating→monitoring→resolved, timeline tracking, incident command roles, MTTR calculation)
+  - slo.ts: SLO tracking framework (6 default targets, error budget calculation, real-time availability tracking)
+  - index.ts: Barrel export for all observability components
+- Created 5 observability API routes:
+  - GET /api/observability/metrics — all collected metrics + summary
+  - GET/POST /api/observability/alerts — list/acknowledge/resolve alerts with filtering
+  - GET/POST /api/observability/incidents — list/create/transition incidents with MTTR
+  - GET /api/observability/ai-usage — AI cost summary, model breakdown, per-org usage
+  - GET /api/observability/slos — all SLO targets with availability and error budgets
+- Created enhanced health endpoint: GET /api/observability/health?type=full|liveness with database, job queue, workflow stuck-run, and P1 incident checks
+- Created 3 Command Center API routes:
+  - GET /api/command-center/platform — platform overview (availability, business health KPIs, alerts, incidents, SLO summary)
+  - GET /api/command-center/organizations — tenant view (list all orgs with subscription summary, single org detail with domain/workflow/AI/security health)
+  - GET /api/command-center/domains — domain view (all domains overview, single domain with active orgs and modules)
+- Added 3 Prisma models to schema: Incident, AlertRecord, SLOTarget, SLOPeriod (with 4 enums)
+- Added Organization→Incident relation
+- Updated health endpoint phase to 9
+- Ran prisma db push + seed successfully
+- Clean build verified: 0 errors, all new routes compiled
+
+Stage Summary:
+- Phase 9 built from scratch: 7 core modules, 8 API routes, 3 Command Center routes, 4 Prisma models
+- Structured logging: JSON format, correlation IDs (request_id, trace_id, span_id, org_id, user_id), production-safe levels
+- Error tracking: 10 categories, 30+ error codes, fingerprint grouping, MianxAppError class
+- Metrics: counters, histograms (p50/p95/p99), gauges — covers HTTP, DB, jobs, workflows, integrations, AI quality/safety/cost, business KPIs
+- AI telemetry: quality signals (tool success, task completion, approval rate), safety signals (policy denials, loops, excessive retries), cost per model/org/domain
+- Alert system: P1-P4 severity, 5-min deduplication, owner routing (7 categories), lifecycle management
+- Incident model: 6-state lifecycle with timeline, incident command roles, MTTR calculation
+- SLO framework: 6 targets (API availability, latency, workflow, AI, billing, integration) with error budget tracking
+- Telemetry redaction: sensitive field detection, pattern matching for tokens/keys/credit cards/SSN, header redaction
+- Command Center: platform overview, tenant view, domain view
+- Enhanced health: liveness/readiness separation, dependency checks (DB, jobs, workflows, P1 incidents)

@@ -71,6 +71,7 @@ model Organization {
   subscriptions  Subscription[]
   usageRecords   UsageRecord[]
   invoices       Invoice[]
+  incidents      Incident[]
 }
 
 model Profile {
@@ -898,4 +899,123 @@ model Invoice {
   @@unique([organizationId, invoiceNumber])
   @@index([subscriptionId])
   @@index([status])
+}
+
+// ── OBSERVABILITY TABLES ─────────────────────────────────────
+
+enum IncidentSeverity {
+  P1
+  P2
+  P3
+  P4
+}
+
+enum IncidentState {
+  detected
+  acknowledged
+  investigating
+  mitigating
+  monitoring
+  resolved
+}
+
+model Incident {
+  id              String           @id @default(cuid())
+  title           String
+  severity        IncidentSeverity @default(P3)
+  status          IncidentState    @default(detected)
+  service         String
+  owner           String
+  impact          String           @default("")
+  organizationId  String?
+  detectedAt      DateTime         @default(now())
+  startedAt       DateTime?
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  commander       String?
+  technicalLead   String?
+  commsOwner      String?
+  sme             String?
+  timeline        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organization    Organization?    @relation(fields: [organizationId], references: [id])
+
+  @@index([status, severity])
+  @@index([organizationId])
+}
+
+enum AlertSeverity {
+  P1
+  P2
+  P3
+  P4
+}
+
+enum AlertState {
+  firing
+  acknowledged
+  resolved
+  silenced
+}
+
+model AlertRecord {
+  id              String         @id @default(cuid())
+  severity        AlertSeverity  @default(P3)
+  status          AlertState     @default(firing)
+  owner           String
+  name            String
+  description     String
+  what            String
+  why             String
+  who             String
+  action          String
+  fingerprint     String
+  firedAt         DateTime       @default(now())
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  silencedUntil   DateTime?
+  organizationId  String?
+  labels          String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status, severity])
+  @@index([fingerprint])
+}
+
+model SLOTarget {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String
+  target        Float    // e.g. 0.999 = 99.9%
+  windowDays    Int      @default(30)
+  metricName    String
+  labels        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  periods       SLOPeriod[]
+}
+
+model SLOPeriod {
+  id                    String   @id @default(cuid())
+  sloTargetId           String
+  periodStart           DateTime @default(now())
+  periodEnd             DateTime
+  totalEvents           Int      @default(0)
+  goodEvents            Int      @default(0)
+  badEvents             Int      @default(0)
+  availability          Float    @default(1)
+  errorBudgetTotal      Float    @default(0)
+  errorBudgetConsumed   Float    @default(0)
+  errorBudgetRemaining  Float    @default(0)
+  errorBudgetPct        Float    @default(100)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  sloTarget SLOTarget @relation(fields: [sloTargetId], references: [id], onDelete: Cascade)
+
+  @@index([sloTargetId, periodStart])
 }
