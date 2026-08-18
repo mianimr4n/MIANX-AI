@@ -96,11 +96,12 @@ async function main() {
     prisma.permission.create({ data: { key: 'ai.chat', description: 'Send messages to AI agents' } }),
     prisma.permission.create({ data: { key: 'ai.conversations.view', description: 'View AI conversations' } }),
     prisma.permission.create({ data: { key: 'ai.agents.manage', description: 'Create and configure AI agents' } }),
+    prisma.permission.create({ data: { key: 'ai.usage.admin', description: 'View AI usage statistics and costs' } }),
     // Automation permissions
     prisma.permission.create({ data: { key: 'automation.events.manage', description: 'Publish and manage events' } }),
     prisma.permission.create({ data: { key: 'automation.workflows.view', description: 'View workflows and runs' } }),
     prisma.permission.create({ data: { key: 'automation.workflows.manage', description: 'Create and configure workflows' } }),
-    prisma.create({ data: { key: 'automation.workflows.execute', description: 'Trigger workflow execution' } }),
+    prisma.permission.create({ data: { key: 'automation.workflows.execute', description: 'Trigger workflow execution' } }),
     prisma.permission.create({ data: { key: 'automation.jobs.view', description: 'View jobs' } }),
     prisma.permission.create({ data: { key: 'automation.jobs.manage', description: 'Create and manage jobs' } }),
     prisma.permission.create({ data: { key: 'automation.approvals.manage', description: 'View and decide approvals' } }),

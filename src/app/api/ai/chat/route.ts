@@ -5,13 +5,17 @@
 
 import { NextResponse } from 'next/server'
 import { sendMessage } from '@/ai'
+import { getUsageStats } from '@/ai/memory'
 import { withAuth } from '@/core/authorization'
 import { apiEnvelope } from '@/core/tenancy/utils'
+
+/** Monthly token budget per organization (free tier) */
+const MONTHLY_TOKEN_BUDGET = 1_000_000
 
 export const POST = withAuth(async (request, ctx) => {
   try {
     const body = await request.json()
-    const { message, conversationId, agentSlug, model } = body
+    const { message, conversationId, agentSlug, model, maxTokens } = body
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(apiEnvelope(null, 'message is required'), { status: 400 })
@@ -19,6 +23,20 @@ export const POST = withAuth(async (request, ctx) => {
 
     if (message.length > 32000) {
       return NextResponse.json(apiEnvelope(null, 'Message too long (max 32K characters)'), { status: 400 })
+    }
+
+    // Cap maxTokens to prevent excessive requests
+    const cappedMaxTokens = maxTokens
+      ? Math.min(Math.max(64, Number(maxTokens)), 16384)
+      : undefined
+
+    // Token budget guard: check org monthly usage
+    const stats = await getUsageStats(ctx.organizationId)
+    if (stats.totalTokensIn + stats.totalTokensOut > MONTHLY_TOKEN_BUDGET) {
+      return NextResponse.json(
+        apiEnvelope(null, `Monthly token budget exceeded (${MONTHLY_TOKEN_BUDGET.toLocaleString()} tokens). Contact your organization admin.`),
+        { status: 429 }
+      )
     }
 
     const { conversationId: convId, stream } = await sendMessage(
@@ -33,6 +51,7 @@ export const POST = withAuth(async (request, ctx) => {
       {
         conversationId,
         model,
+        maxTokens: cappedMaxTokens,
         metadata: agentSlug ? { agentSlug } : undefined,
       }
     )

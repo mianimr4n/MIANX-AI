@@ -1,0 +1,465 @@
+     1→// ══════════════════════════════════════════════════════════════════
+     2→// MIANX.AI — Development Seed Data
+     3→// Run: bun run src/database/seeds/seed.ts
+     4→// ══════════════════════════════════════════════════════════════════
+     5→
+     6→import { PrismaClient } from '@prisma/client'
+     7→
+     8→const prisma = new PrismaClient()
+     9→
+    10→async function main() {
+    11→  console.log('🌱 Seeding Mianx.ai development data...')
+    12→
+    13→  // ── Clear existing (order matters for FK constraints) ──
+    14→  await prisma.membershipRole.deleteMany()
+    15→  await prisma.rolePermission.deleteMany()
+    16→  await prisma.teamMember.deleteMany()
+    17→  await prisma.aiMessage.deleteMany()
+    18→  await prisma.conversation.deleteMany()
+    19→  await prisma.agentConfig.deleteMany()
+    20→  await prisma.organizationModule.deleteMany()
+    21→  await prisma.organizationDomain.deleteMany()
+    22→  await prisma.organizationMembership.deleteMany()
+    23→  await prisma.auditLog.deleteMany()
+    24→  await prisma.notification.deleteMany()
+    25→  await prisma.file.deleteMany()
+    26→  await prisma.setting.deleteMany()
+    27→  await prisma.team.deleteMany()
+    28→  await prisma.role.deleteMany()
+    29→  await prisma.permission.deleteMany()
+    30→  await prisma.module.deleteMany()
+    31→  await prisma.domain.deleteMany()
+    32→  await prisma.organization.deleteMany()
+    33→  await prisma.profile.deleteMany()
+    34→
+    35→  // ── Organizations ──
+    36→  const orgs = await Promise.all([
+    37→    prisma.organization.create({ data: { name: 'Poultry Farm Co', slug: 'poultry-farm-co', status: 'active', currency: 'PKR', timezone: 'Asia/Karachi', locale: 'ur' } }),
+    38→    prisma.organization.create({ data: { name: 'Fresh Restaurants', slug: 'fresh-restaurants', status: 'active', currency: 'USD', timezone: 'America/New_York' } }),
+    39→    prisma.organization.create({ data: { name: 'Test Organization', slug: 'test-organization', status: 'trial', currency: 'EUR', timezone: 'Europe/Berlin' } }),
+    40→  ])
+    41→  console.log(`  ✓ Created ${orgs.length} organizations`)
+    42→
+    43→  // ── Profiles ──
+    44→  const profiles = await Promise.all([
+    45→    prisma.profile.create({ data: { userId: 'user-admin-001', displayName: 'Ali Khan', locale: 'ur', timezone: 'Asia/Karachi' } }),
+    46→    prisma.profile.create({ data: { userId: 'user-manager-002', displayName: 'Sara Ahmed', locale: 'en', timezone: 'Asia/Karachi' } }),
+    47→    prisma.profile.create({ data: { userId: 'user-viewer-003', displayName: 'Usman Tariq', locale: 'en', timezone: 'UTC' } }),
+    48→  ])
+    49→  console.log(`  ✓ Created ${profiles.length} profiles`)
+    50→
+    51→  // ── Memberships ──
+    52→  const memberships = await Promise.all([
+    53→    prisma.organizationMembership.create({ data: { organizationId: orgs[0].id, userId: profiles[0].userId, status: 'active', joinedAt: new Date() } }),
+    54→    prisma.organizationMembership.create({ data: { organizationId: orgs[0].id, userId: profiles[1].userId, status: 'active', joinedAt: new Date() } }),
+    55→    prisma.organizationMembership.create({ data: { organizationId: orgs[1].id, userId: profiles[0].userId, status: 'active', joinedAt: new Date() } }),
+    56→    prisma.organizationMembership.create({ data: { organizationId: orgs[2].id, userId: profiles[2].userId, status: 'invited' } }),
+    57→  ])
+    58→  console.log(`  ✓ Created ${memberships.length} memberships`)
+    59→
+    60→  // ── System Roles (org-scoped) ──
+    61→  const roles = await Promise.all([
+    62→    ...orgs.flatMap(org => [
+    63→      prisma.role.create({ data: { organizationId: org.id, name: 'Owner', slug: 'owner', description: 'Full access to organization', isSystem: true } }),
+    64→      prisma.role.create({ data: { organizationId: org.id, name: 'Admin', slug: 'admin', description: 'Administrative access', isSystem: true } }),
+    65→      prisma.role.create({ data: { organizationId: org.id, name: 'Member', slug: 'member', description: 'Standard member access', isSystem: true } }),
+    66→      prisma.role.create({ data: { organizationId: org.id, name: 'Viewer', slug: 'viewer', description: 'Read-only access', isSystem: true } }),
+    67→    ]),
+    68→  ])
+    69→  console.log(`  ✓ Created ${roles.length} system roles (${orgs.length} orgs × 4 roles)`)
+    70→
+    71→  // ── Permissions ──
+    72→  const permissions = await Promise.all([
+    73→    // Organization permissions
+    74→    prisma.permission.create({ data: { key: 'organization.view', description: 'View organization details' } }),
+    75→    prisma.permission.create({ data: { key: 'organization.update', description: 'Update organization settings' } }),
+    76→    prisma.permission.create({ data: { key: 'organization.delete', description: 'Archive organization' } }),
+    77→    // Team permissions
+    78→    prisma.permission.create({ data: { key: 'team.view', description: 'View teams' } }),
+    79→    prisma.permission.create({ data: { key: 'team.create', description: 'Create teams' } }),
+    80→    prisma.permission.create({ data: { key: 'team.manage', description: 'Manage team members' } }),
+    81→    // Member permissions
+    82→    prisma.permission.create({ data: { key: 'member.view', description: 'View members' } }),
+    83→    prisma.permission.create({ data: { key: 'member.invite', description: 'Invite new members' } }),
+    84→    prisma.permission.create({ data: { key: 'member.remove', description: 'Remove members' } }),
+    85→    // Domain permissions
+    86→    prisma.permission.create({ data: { key: 'domain.view', description: 'View available domains' } }),
+    87→    prisma.permission.create({ data: { key: 'domain.activate', description: 'Activate/deactivate domains' } }),
+    88→    prisma.permission.create({ data: { key: 'domain.configure', description: 'Configure domain settings' } }),
+    89→    // Module permissions
+    90→    prisma.permission.create({ data: { key: 'module.view', description: 'View available modules' } }),
+    91→    prisma.permission.create({ data: { key: 'module.activate', description: 'Activate/deactivate modules' } }),
+    92→    prisma.permission.create({ data: { key: 'module.configure', description: 'Configure module settings' } }),
+    93→    // Audit permissions
+    94→    prisma.permission.create({ data: { key: 'audit.view', description: 'View audit logs' } }),
+    95→    // AI permissions
+    96→    prisma.permission.create({ data: { key: 'ai.chat', description: 'Send messages to AI agents' } }),
+    97→    prisma.permission.create({ data: { key: 'ai.conversations.view', description: 'View AI conversations' } }),
+    98→    prisma.permission.create({ data: { key: 'ai.agents.manage', description: 'Create and configure AI agents' } }),
+    99→    // Automation permissions
+   100→    prisma.permission.create({ data: { key: 'automation.events.manage', description: 'Publish and manage events' } }),
+   101→    prisma.permission.create({ data: { key: 'automation.workflows.view', description: 'View workflows and runs' } }),
+   102→    prisma.permission.create({ data: { key: 'automation.workflows.manage', description: 'Create and configure workflows' } }),
+   103→    prisma.create({ data: { key: 'automation.workflows.execute', description: 'Trigger workflow execution' } }),
+   104→    prisma.permission.create({ data: { key: 'automation.jobs.view', description: 'View jobs' } }),
+   105→    prisma.permission.create({ data: { key: 'automation.jobs.manage', description: 'Create and manage jobs' } }),
+   106→    prisma.permission.create({ data: { key: 'automation.approvals.manage', description: 'View and decide approvals' } }),
+   107→  ])
+   108→  console.log(`  ✓ Created ${permissions.length} permissions`)
+   109→
+   110→  // ── Assign permissions to roles ──
+   111→  for (const org of orgs) {
+   112→    const ownerRole = roles.find(r => r.organizationId === org.id && r.slug === 'owner')!
+   113→    const adminRole = roles.find(r => r.organizationId === org.id && r.slug === 'admin')!
+   114→    const memberRole = roles.find(r => r.organizationId === org.id && r.slug === 'member')!
+   115→
+   116→    // Owner gets ALL permissions
+   117→    await Promise.all(
+   118→      permissions.map(p => prisma.rolePermission.create({ data: { roleId: ownerRole.id, permissionId: p.id } }))
+   119→    )
+   120→    // Admin gets all except destructive
+   121→    const adminPerms = permissions.filter(p => !p.key.includes('delete'))
+   122→    await Promise.all(
+   123→      adminPerms.map(p => prisma.rolePermission.create({ data: { roleId: adminRole.id, permissionId: p.id } }))
+   124→    )
+   125→    // Member gets view + domain.view + domain.activate + ai.chat
+   126→    const memberPerms = permissions.filter(p =>
+   127→      p.key.endsWith('.view') || p.key === 'domain.view' || p.key === 'ai.chat'
+   128→    )
+   129→    await Promise.all(
+   130→      memberPerms.map(p => prisma.rolePermission.create({ data: { roleId: memberRole.id, permissionId: p.id } }))
+   131→    )
+   132→  }
+   133→  console.log('  ✓ Assigned permissions to Owner/Admin/Member roles')
+   134→
+   135→  // ── Assign roles to memberships ──
+   136→  await Promise.all([
+   137→    prisma.membershipRole.create({ data: { membershipId: memberships[0].id, roleId: roles.find(r => r.organizationId === orgs[0].id && r.slug === 'owner')!.id } }),
+   138→    prisma.membershipRole.create({ data: { membershipId: memberships[1].id, roleId: roles.find(r => r.organizationId === orgs[0].id && r.slug === 'member')!.id } }),
+   139→    prisma.membershipRole.create({ data: { membershipId: memberships[2].id, roleId: roles.find(r => r.organizationId === orgs[1].id && r.slug === 'admin')!.id } }),
+   140→  ])
+   141→  console.log('  ✓ Assigned roles to memberships')
+   142→
+   143→  // ══════════════════════════════════════════════════════════════
+   144→  // DOMAINS & MODULES (Phase 3 — Domain Engine)
+   145→  // ══════════════════════════════════════════════════════════════
+   146→
+   147→  // ── Global Domains ──
+   148→  const domains = await Promise.all([
+   149→    prisma.domain.create({
+   150→      data: {
+   151→        name: 'Poultry OS',
+   152→        slug: 'poultry',
+   153→        version: '1.0.0',
+   154→        description: 'End-to-end poultry farm management — feed, flock, health, sales',
+   155→        status: 'available',
+   156→        manifest: JSON.stringify({
+   157→          schema: 'mianx-domain/v1',
+   158→          domain: { name: 'Poultry OS', slug: 'poultry', version: '1.0.0' },
+   159→          moduleCount: 4, permissionCount: 12,
+   160→        }),
+   161→      },
+   162→    }),
+   163→    prisma.domain.create({
+   164→      data: {
+   165→        name: 'Restaurant OS',
+   166→        slug: 'restaurant',
+   167→        version: '1.0.0',
+   168→        description: 'Restaurant operations — menu, orders, kitchen, inventory',
+   169→        status: 'available',
+   170→        manifest: JSON.stringify({
+   171→          schema: 'mianx-domain/v1',
+   172→          domain: { name: 'Restaurant OS', slug: 'restaurant', version: '1.0.0' },
+   173→          moduleCount: 4, permissionCount: 10,
+   174→        }),
+   175→      },
+   176→    }),
+   177→    prisma.domain.create({
+   178→      data: {
+   179→        name: 'Retail OS',
+   180→        slug: 'retail',
+   181→        version: '0.9.0',
+   182→        description: 'Retail management — POS, inventory, customers, loyalty',
+   183→        status: 'draft',
+   184→        manifest: JSON.stringify({
+   185→          schema: 'mianx-domain/v1',
+   186→          domain: { name: 'Retail OS', slug: 'retail', version: '0.9.0' },
+   187→          moduleCount: 3, permissionCount: 8,
+   188→        }),
+   189→      },
+   190→    }),
+   191→  ])
+   192→  console.log(`  ✓ Created ${domains.length} global domains`)
+   193→
+   194→  // ── Domain Modules ──
+   195→  const poultryModules = await Promise.all([
+   196→    prisma.module.create({ data: { domainId: domains[0].id, name: 'Flock Management', slug: 'flock-management', version: '1.0.0', description: 'Track flocks, batches, mortality, weights', status: 'available' } }),
+   197→    prisma.module.create({ data: { domainId: domains[0].id, name: 'Feed Management', slug: 'feed-management', version: '1.0.0', description: 'Feed formulations, consumption tracking, cost analysis', status: 'available' } }),
+   198→    prisma.module.create({ data: { domainId: domains[0].id, name: 'Health & Vaccination', slug: 'health-vaccination', version: '1.0.0', description: 'Vaccination schedules, disease tracking, vet records', status: 'available' } }),
+   199→    prisma.module.create({ data: { domainId: domains[0].id, name: 'Sales & Procurement', slug: 'sales-procurement', version: '1.0.0', description: 'Customer orders, procurement, pricing, invoicing', status: 'draft' } }),
+   200→  ])
+   201→
+   202→  const restaurantModules = await Promise.all([
+   203→    prisma.module.create({ data: { domainId: domains[1].id, name: 'Menu Management', slug: 'menu-management', version: '1.0.0', description: 'Menu items, categories, pricing, modifiers', status: 'available' } }),
+   204→    prisma.module.create({ data: { domainId: domains[1].id, name: 'Order Management', slug: 'order-management', version: '1.0.0', description: 'Orders, kitchen display, fulfillment', status: 'available' } }),
+   205→    prisma.module.create({ data: { domainId: domains[1].id, name: 'Kitchen Operations', slug: 'kitchen-operations', version: '1.0.0', description: 'Prep lists, waste tracking, recipe management', status: 'available' } }),
+   206→    prisma.module.create({ data: { domainId: domains[1].id, name: 'Table & Reservation', slug: 'table-reservation', version: '1.0.0', description: 'Table layout, reservations, waitlist', status: 'draft' } }),
+   207→  ])
+   208→
+   209→  const retailModules = await Promise.all([
+   210→    prisma.module.create({ data: { domainId: domains[2].id, name: 'Point of Sale', slug: 'pos', version: '0.9.0', description: 'POS terminal, transactions, receipts', status: 'draft' } }),
+   211→    prisma.module.create({ data: { domainId: domains[2].id, name: 'Inventory', slug: 'inventory', version: '0.9.0', description: 'Stock levels, reordering, suppliers', status: 'draft' } }),
+   212→    prisma.module.create({ data: { domainId: domains[2].id, name: 'Customer Loyalty', slug: 'customer-loyalty', version: '0.9.0', description: 'Loyalty points, rewards, customer profiles', status: 'draft' } }),
+   213→  ])
+   214→
+   215→  console.log(`  ✓ Created ${poultryModules.length + restaurantModules.length + retailModules.length} modules across ${domains.length} domains`)
+   216→
+   217→  // ── Activate domains for organizations ──
+   218→  const orgDomains = await Promise.all([
+   219→    // Poultry Farm Co gets Poultry OS
+   220→    prisma.organizationDomain.create({
+   221→      data: { organizationId: orgs[0].id, domainId: domains[0].id, status: 'active', activatedAt: new Date(), configuration: JSON.stringify({ unit_system: 'metric', language: 'ur' }) },
+   222→    }),
+   223→    // Fresh Restaurants gets Restaurant OS
+   224→    prisma.organizationDomain.create({
+   225→      data: { organizationId: orgs[1].id, domainId: domains[1].id, status: 'active', activatedAt: new Date(), configuration: JSON.stringify({ currency: 'USD', tax_rate: 0.08 }) },
+   226→    }),
+   227→    // Poultry Farm Co also activates Restaurant (for their restaurant side)
+   228→    prisma.organizationDomain.create({
+   229→      data: { organizationId: orgs[0].id, domainId: domains[1].id, status: 'active', activatedAt: new Date(), configuration: JSON.stringify({ currency: 'PKR', tax_rate: 0.16 }) },
+   230→    }),
+   231→  ])
+   232→  console.log(`  ✓ Activated ${orgDomains.length} domain-organization links`)
+   233→
+   234→  // ── Activate modules for organizations ──
+   235→  const orgModules = await Promise.all([
+   236→    // Poultry Farm Co: Flock + Feed modules
+   237→    prisma.organizationModule.create({ data: { organizationId: orgs[0].id, moduleId: poultryModules[0].id, status: 'active', activatedAt: new Date(), configuration: JSON.stringify({ batch_tracking: true }) } }),
+   238→    prisma.organizationModule.create({ data: { organizationId: orgs[0].id, moduleId: poultryModules[1].id, status: 'active', activatedAt: new Date() } }),
+   239→    // Fresh Restaurants: Menu + Orders modules
+   240→    prisma.organizationModule.create({ data: { organizationId: orgs[1].id, moduleId: restaurantModules[0].id, status: 'active', activatedAt: new Date() } }),
+   241→    prisma.organizationModule.create({ data: { organizationId: orgs[1].id, moduleId: restaurantModules[1].id, status: 'active', activatedAt: new Date() } }),
+   242→    // Poultry Farm Co also activates Menu module (via Restaurant OS)
+   243→    prisma.organizationModule.create({ data: { organizationId: orgs[0].id, moduleId: restaurantModules[0].id, status: 'active', activatedAt: new Date() } }),
+   244→  ])
+   245→  console.log(`  ✓ Activated ${orgModules.length} module-organization links`)
+   246→
+   247→  // ── Teams ──
+   248→  const teams = await Promise.all([
+   249→    prisma.team.create({ data: { organizationId: orgs[0].id, name: 'Farm Operations', description: 'Daily farm management team' } }),
+   250→    prisma.team.create({ data: { organizationId: orgs[0].id, name: 'Sales & Procurement', description: 'Handles sales and purchasing' } }),
+   251→    prisma.team.create({ data: { organizationId: orgs[1].id, name: 'Kitchen Staff', description: 'Restaurant kitchen operations' } }),
+   252→  ])
+   253→  console.log(`  ✓ Created ${teams.length} teams`)
+   254→
+   255→  // ── Settings ──
+   256→  await Promise.all([
+   257→    prisma.setting.create({ data: { organizationId: orgs[0].id, scopeType: 'organization', key: 'default_currency', value: 'PKR' } }),
+   258→    prisma.setting.create({ data: { organizationId: orgs[0].id, scopeType: 'organization', key: 'date_format', value: 'DD/MM/YYYY' } }),
+   259→    prisma.setting.create({ data: { organizationId: orgs[1].id, scopeType: 'organization', key: 'default_currency', value: 'USD' } }),
+   260→  ])
+   261→  console.log('  ✓ Created organization settings')
+   262→
+   263→  // ── Notifications ──
+   264→  await Promise.all([
+   265→    prisma.notification.create({ data: { organizationId: orgs[0].id, recipientUserId: profiles[0].userId, type: 'system', title: 'Welcome to Mianx.ai', body: 'Your organization is set up and ready to use.' } }),
+   266→    prisma.notification.create({ data: { organizationId: orgs[0].id, recipientUserId: profiles[1].userId, type: 'invitation', title: 'You were added to Poultry Farm Co', body: 'Ali Khan added you as a team member.' } }),
+   267→  ])
+   268→  console.log('  ✓ Created sample notifications')
+   269→
+   270→  // ══════════════════════════════════════════════════════════════
+   271→  // AI CORE (Phase 4 — AI Core Foundation)
+   272→  // ══════════════════════════════════════════════════════════════
+   273→
+   274→  // ── Custom Agent Configs ──
+   275→  const agentConfigs = await Promise.all([
+   276→    prisma.agentConfig.create({
+   277→      data: {
+   278→        organizationId: orgs[0].id, slug: 'farm-advisor', name: 'Farm Advisor',
+   279→        description: 'Specialized in poultry farm operations, feed optimization, and flock health',
+   280→        systemPrompt: `You are Poultry Farm Co's AI Farm Advisor. You specialize in:
+   281→- Flock management and batch tracking
+   282→- Feed formulation and cost optimization
+   283→- Health monitoring and vaccination schedules
+   284→- Sales forecasting and procurement planning
+   285→
+   286→Always reference actual data from the tools. Use Urdu terms when appropriate for the Pakistani context.
+   287→Be specific and actionable in your recommendations.`,
+   288→        model: 'gpt-4o-mini', provider: 'openai', temperature: 0.5, maxTokens: 4096,
+   289→        tools: JSON.stringify(['list_active_domains', 'list_active_modules', 'get_organization_stats', 'list_organization_members']),
+   290→      },
+   291→    }),
+   292→    prisma.agentConfig.create({
+   293→      data: {
+   294→        organizationId: orgs[1].id, slug: 'menu-optimizer', name: 'Menu Optimizer',
+   295→        description: 'Helps optimize restaurant menu items, pricing, and ingredient costs',
+   296→        systemPrompt: `You are Fresh Restaurants' Menu Optimizer AI. You help with:
+   297→- Menu item pricing and profitability analysis
+   298→- Ingredient cost tracking
+   299→- Seasonal menu recommendations
+   300→- Customer preference analysis
+   301→
+   302→Always use tools to get real data. Focus on actionable cost-saving insights.`,
+   303→        model: 'claude-haiku-4-20250414', provider: 'anthropic', temperature: 0.4, maxTokens: 4096,
+   304→        tools: JSON.stringify(['get_organization_stats', 'list_active_modules', 'search_audit_logs']),
+   305→      },
+   306→    }),
+   307→  ])
+   308→  console.log(`  ✓ Created ${agentConfigs.length} custom agent configs`)
+   309→
+   310→  // ── Sample Conversations ──
+   311→  const sampleConvos = await Promise.all([
+   312→    prisma.conversation.create({
+   313→      data: { organizationId: orgs[0].id, userId: profiles[0].userId, title: 'Flock health check recommendations', agentSlug: 'general-assistant' },
+   314→    }),
+   315→    prisma.conversation.create({
+   316→      data: { organizationId: orgs[0].id, userId: profiles[0].userId, title: 'Feed cost analysis Q1', agentSlug: 'farm-advisor' },
+   317→    }),
+   318→    prisma.conversation.create({
+   319→      data: { organizationId: orgs[1].id, userId: profiles[0].userId, title: 'Menu pricing review', agentSlug: 'menu-optimizer', status: 'archived' },
+   320→    }),
+   321→  ])
+   322→  console.log(`  ✓ Created ${sampleConvos.length} sample conversations`)
+   323→
+   324→  // ── Sample Messages ──
+   325→  await Promise.all([
+   326→    // Convo 1 messages
+   327→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[0].id, role: 'user', content: 'What vaccinations are due this month for our flocks?' } }),
+   328→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[0].id, role: 'assistant', content: 'Let me check your current flock data and vaccination schedules. Based on the Poultry OS domain data, I recommend scheduling Newcastle disease booster and infectious bronchitis vaccination for all active flocks this month.', model: 'gpt-4o-mini', provider: 'openai', tokensIn: 45, tokensOut: 38, latencyMs: 320 } }),
+   329→    // Convo 2 messages
+   330→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'user', content: 'Analyze our feed costs for last quarter' } }),
+   331→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'assistant', content: 'Based on your organization data, you have 2 active modules including Feed Management. The feed costs have been tracked across your active flocks. I recommend reviewing the feed formulation ratios — switching to a locally-sourced soy alternative could reduce costs by 12-15%.', model: 'gpt-4o-mini', provider: 'openai', tokensIn: 52, tokensOut: 56, latencyMs: 410 } }),
+   332→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'user', content: 'Which supplier has the best rates?' } }),
+   333→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'assistant', content: 'I don\'t have a supplier comparison tool available yet. However, I can search your audit logs for procurement records. Would you like me to do that?', model: 'gpt-4o-mini', provider: 'openai', tokensIn: 28, tokensOut: 34, latencyMs: 280 } }),
+   334→    // Convo 3 messages
+   335→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[2].id, role: 'user', content: 'Review our top 5 menu items for profitability' } }),
+   336→    prisma.aiMessage.create({ data: { conversationId: sampleConvos[2].id, role: 'assistant', content: 'Your restaurant has Menu Management and Order Management modules active. Based on the current data, I can see your organization is set up with USD currency. For a detailed profitability analysis, I\'d need access to cost and pricing data from the Menu module — which will be available once the domain data is fully integrated.', model: 'claude-haiku-4-20250414', provider: 'anthropic', tokensIn: 48, tokensOut: 62, latencyMs: 550 } }),
+   337→  ])
+   338→  console.log('  ✓ Created 7 sample messages across 3 conversations')
+   339→
+   340→  // ══════════════════════════════════════════════════════════════
+   341→  // AUTOMATION (Phase 5 — Event and Automation)
+   342→  // ══════════════════════════════════════════════════════════════
+   343→
+   344→  // ── Sample Events ──
+   345→  const sampleEvents = await Promise.all([
+   346→    prisma.event.create({
+   347→      data: { organizationId: orgs[0].id, eventType: 'poultry.flock.created', eventVersion: '1',
+   348→        domainId: domains[0].id, sourceType: 'user', actorType: 'user', actorId: profiles[0].userId,
+   349→        payload: JSON.stringify({ flockName: 'Batch A-101', shedId: 'shed-1', breed: 'Cobb-500', count: 5000 }),
+   350→        correlationId: 'corr-seed-001',
+   351→      },
+   352→    }),
+   353→    prisma.event.create({
+   354→      data: { organizationId: orgs[0].id, eventType: 'poultry.mortality.recorded', eventVersion: '1',
+   355→        domainId: domains[0].id, sourceType: 'system', actorType: 'system',
+   356→        causationId: 'evt-seed-001',
+   357→        payload: JSON.stringify({ flockId: 'flock-1', date: '2026-08-18', mortalityCount: 15, mortalityRate: 0.003, avgWeight: 2.1 }),
+   358→        correlationId: 'corr-seed-002',
+   359→      },
+   360→    }),
+   361→    prisma.event.create({
+   362→      data: { organizationId: orgs[1].id, eventType: 'restaurant.order.created', eventVersion: '1',
+   363→        domainId: domains[1].id, sourceType: 'user', actorType: 'user', actorId: profiles[0].userId,
+   364→        payload: JSON.stringify({ orderId: 'ORD-001', items: [{ name: 'Grilled Chicken', qty: 2, price: 25 }], total: 50 }),
+   365→        correlationId: 'corr-seed-003',
+   366→      },
+   367→    }),
+   368→    prisma.event.create({
+   369→      data: { organizationId: orgs[0].id, eventType: 'poultry.inventory.low', eventVersion: '1',
+   370→        domainId: domains[0].id, sourceType: 'system', actorType: 'system',
+   371→        causationId: 'evt-seed-002',
+   372→        payload: JSON.stringify({ itemId: 'feed-protein-001', currentStock: 50, threshold: 200, unit: 'kg' }),
+   373→        correlationId: 'corr-seed-002', status: 'delivered', deliveredAt: new Date(),
+   374→      },
+   375→    }),
+   376→    prisma.event.create({
+   377→      data: { organizationId: orgs[1].id, eventType: 'restaurant.inventory.low', eventVersion: '1',
+   378→        domainId: domains[1].id, sourceType: 'system', actorType: 'system',
+   379→        payload: JSON.stringify({ itemId: 'rice-basmati-001', currentStock: 5, threshold: 20, unit: 'kg' }),
+   380→      },
+   381→    }),
+   382→  ])
+   383→  console.log(`  ✓ Created ${sampleEvents.length} sample events`)
+   384→
+   385→  // ── Sample Workflows ──
+   386→  const sampleWorkflows = await Promise.all([
+   387→    prisma.workflow.create({
+   388→      data: {
+   389→        organizationId: orgs[0].id, name: 'Mortality Alert', slug: 'mortality-alert',
+   390→        description: 'Alert farm manager when mortality rate exceeds threshold',
+   391→        triggerType: 'event',
+   392→        triggerConfig: JSON.stringify({ eventType: 'poultry.mortality.recorded' }),
+   393→        conditions: JSON.stringify([{ field: 'payload.mortalityRate', operator: 'gt', value: 0.002 }]),
+   394→        steps: JSON.stringify([
+   395→          { id: 'check-threshold', name: 'Check Mortality Rate', type: 'condition', config: { field: 'payload.mortalityRate', operator: 'gt', value: 0.002 } },
+   396→          { id: 'analyze', name: 'AI Analysis', type: 'ai_decision', config: { prompt: 'Analyze this mortality event and provide a brief recommendation.', model: 'gpt-4o-mini', provider: 'openai' } },
+   397→          { id: 'notify', name: 'Notify Manager', type: 'action', config: { type: 'send_notification', params: { type: 'alert', title: 'Mortality Alert', body: 'Mortality rate exceeded threshold. AI analysis available.' } } },
+   398→        ]),
+   399→        retryPolicy: JSON.stringify({ maxAttempts: 2, backoffMs: 30000, maxBackoffMs: 300000 }),
+   400→        timeoutSeconds: 120,
+   401→        status: 'active',
+   402→      },
+   403→    }),
+   404→    prisma.workflow.create({
+   405→      data: {
+   406→        organizationId: orgs[0].id, name: 'Low Feed Inventory', slug: 'low-feed-inventory',
+   407→        description: 'Notify when feed stock falls below threshold',
+   408→        triggerType: 'event',
+   409→        triggerConfig: JSON.stringify({ eventType: 'poultry.inventory.low' }),
+   410→        conditions: JSON.stringify([{ field: 'payload.currentStock', operator: 'lt', value: 'payload.threshold' }]),
+   411→        steps: JSON.stringify([
+   412→          { id: 'check', name: 'Verify Stock Level', type: 'condition', config: { field: 'payload.currentStock', operator: 'lt', value: 'payload.threshold' } },
+   413→          { id: 'notify', name: 'Send Alert', type: 'action', config: { type: 'send_notification', params: { type: 'alert', title: 'Low Feed Stock', body: 'Feed inventory is below threshold. Consider reordering.' } } },
+   414→        ]),
+   415→        timeoutSeconds: 60,
+   416→        status: 'active',
+   417→      },
+   418→    }),
+   419→    prisma.workflow.create({
+   420→      data: {
+   421→        organizationId: orgs[1].id, name: 'New Order Notification', slug: 'new-order-notification',
+   422→        description: 'Notify kitchen staff when a new order is placed',
+   423→        triggerType: 'event',
+   424→        triggerConfig: JSON.stringify({ eventType: 'restaurant.order.created' }),
+   425→        steps: JSON.stringify([
+   426→          { id: 'notify-kitchen', name: 'Notify Kitchen', type: 'action', config: { type: 'send_notification', params: { type: 'info', title: 'New Order', body: 'A new order has been placed. Check kitchen display.' } } },
+   427→        ]),
+   428→        timeoutSeconds: 30,
+   429→        status: 'active',
+   430→      },
+   431→    }),
+   432→  ])
+   433→  console.log(`  ✓ Created ${sampleWorkflows.length} sample workflows`)
+   434→
+   435→  // ── Sample Job ──
+   436→  await prisma.job.create({
+   437→    data: { organizationId: orgs[0].id, type: 'send_notification', payload: JSON.stringify({ type: 'system', title: 'Daily Summary', body: 'This is a scheduled daily summary notification.' }), priority: 'low', status: 'completed', attempts: 1, runAt: new Date(), completedAt: new Date() },
+   438→  })
+   439→  await prisma.job.create({
+   440→    data: { organizationId: orgs[0].id, type: 'send_notification', payload: JSON.stringify({ type: 'system', title: 'Feed Check', body: 'Scheduled feed inventory check job.' }), priority: 'normal', scheduledAt: new Date(Date.now() + 86400000), status: 'pending' },
+   441→  })
+   442→  console.log('  ✓ Created 2 sample jobs')
+   443→
+   444→  console.log('\n✅ Seed complete! Summary:')
+   445→  console.log(`   Organizations: ${orgs.length}`)
+   446→  console.log(`   Profiles: ${profiles.length}`)
+   447→  console.log(`   Memberships: ${memberships.length}`)
+   448→  console.log(`   Roles: ${roles.length}`)
+   449→  console.log(`   Permissions: ${permissions.length}`)
+   450→  console.log(`   Domains: ${domains.length}`)
+   451→  console.log(`   Modules: ${poultryModules.length + restaurantModules.length + retailModules.length}`)
+   452→  console.log(`   Org-Domains: ${orgDomains.length}`)
+   453→  console.log(`   Org-Modules: ${orgModules.length}`)
+   454→  console.log(`   Teams: ${teams.length}`)
+   455→  console.log(`   Agent Configs: ${agentConfigs.length}`)
+   456→  console.log(`   Conversations: ${sampleConvos.length}`)
+   457→  console.log(`   Events: ${sampleEvents.length}`)
+   458→  console.log(`   Workflows: ${sampleWorkflows.length}`)
+   459→  console.log(`   Jobs: 2`)
+   460→}
+   461→
+   462→main()
+   463→  .catch(console.error)
+   464→  .finally(() => prisma.$disconnect())
+   465→
