@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 export const APP_NAME = 'Mianx.ai'
-export const APP_VERSION = '0.8.0'
+export const APP_VERSION = '0.9.0'
 export const APP_DESCRIPTION = 'Multi-Tenant, Multi-Domain, AI-Native Business Operating System'
 
 export const PHASES = [
@@ -16,7 +16,7 @@ export const PHASES = [
   { id: 6, name: 'API and Integration', duration: 'Week 14-16', status: 'completed' as const, focus: 'APIs, webhooks, OAuth' },
   { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'completed' as const, focus: 'Plans, subscriptions, usage' },
   { id: 8, name: 'Frontend Platform', duration: 'Week 18-22', status: 'completed' as const, focus: 'App shell, design system' },
-  { id: 9, name: 'Observability and Ops', duration: 'Week 22-24', status: 'pending' as const, focus: 'Logging, monitoring, alerts' },
+  { id: 9, name: 'Observability and Ops', duration: 'Week 22-24', status: 'completed' as const, focus: 'Logging, monitoring, alerts' },
   { id: 10, name: 'Poultry OS Domain', duration: 'Week 24-30', status: 'pending' as const, focus: 'Industry modules, agents' },
   { id: 11, name: 'Production Readiness', duration: 'Week 30-32', status: 'pending' as const, focus: 'Security, testing, deploy' },
 ] as const
