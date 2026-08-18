@@ -79,12 +79,14 @@ export default function HomePage() {
   const [domainLoading, setDomainLoading] = useState(false)
   const [aiResult, setAiResult] = useState<TestResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiModels, setAiModels] = useState<{ models: { id: string; provider: string; displayName: string; tier: string; capabilities: { streaming: boolean; toolUse: boolean; vision: boolean } }[]; configuredProviders: { provider: string; modelCount: number }[] } | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
 
   const fetchData = useCallback(() => {
     fetch('/api/health').then(r => r.json()).then(setHealth).catch(() => {})
     fetch('/api/organizations?limit=10').then(r => r.json()).then(d => setOrgs(d.data)).catch(() => {})
     fetch('/api/domains?include=modules').then(r => r.json()).then(d => setDomains(d.data)).catch(() => {})
+    fetch('/api/ai/models').then(r => r.json()).then(d => setAiModels(d.data)).catch(() => {})
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -98,7 +100,7 @@ export default function HomePage() {
   const inProgressPhases = PHASES.filter(p => p.status === 'in-progress').length
   const progressPct = Math.round(((completedPhases + inProgressPhases * 0.5) / PHASES.length) * 100)
   const totalModules = domains?.reduce((s, d) => s + d._count.modules, 0) ?? 0
-  const totalApiRoutes = 33 // Phase 0-4 combined
+  const totalApiRoutes = 38 // Phase 0-4 combined
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -176,7 +178,7 @@ export default function HomePage() {
 
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><OverviewTab health={health} orgs={orgs} domains={domains} /></motion.div>}
-          {activeTab === 'ai-core' && <motion.div key="ai-core" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AiCoreTab aiResult={aiResult} aiLoading={aiLoading} onRunTest={runAi} /></motion.div>}
+          {activeTab === 'ai-core' && <motion.div key="ai-core" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AiCoreTab aiResult={aiResult} aiLoading={aiLoading} onRunTest={runAi} aiModels={aiModels} /></motion.div>}
           {activeTab === 'domains' && <motion.div key="domains" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><DomainsTab domains={domains} domainResult={domainResult} domainLoading={domainLoading} onRunTest={runDomain} /></motion.div>}
           {activeTab === 'authorization' && <motion.div key="authorization" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AuthTab authResult={authResult} authLoading={authLoading} onRunTest={runAuth} /></motion.div>}
           {activeTab === 'tenancy' && <motion.div key="tenancy" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TenancyTab isoResult={isoResult} isoLoading={isoLoading} onRunTest={runIso} /></motion.div>}
@@ -334,23 +336,25 @@ function DomainsTab({ domains, domainResult, domainLoading, onRunTest }: { domai
 }
 
 // ── AI Core Tab ──
-function AiCoreTab({ aiResult, aiLoading, onRunTest }: { aiResult: TestResult | null; aiLoading: boolean; onRunTest: () => void }) {
+function AiCoreTab({ aiResult, aiLoading, onRunTest, aiModels }: { aiResult: TestResult | null; aiLoading: boolean; onRunTest: () => void; aiModels: { models: { id: string; provider: string; displayName: string; tier: string; capabilities: { streaming: boolean; toolUse: boolean; vision: boolean } }[]; configuredProviders: { provider: string; modelCount: number }[] } | null }) {
+  const providerColors: Record<string, string> = { openai: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20', anthropic: 'text-orange-600 bg-orange-500/10 border-orange-500/20', google: 'text-blue-600 bg-blue-500/10 border-blue-500/20' }
+  const tierColors: Record<string, string> = { free: 'text-emerald-600 bg-emerald-500/10', standard: 'text-blue-600 bg-blue-500/10', premium: 'text-purple-600 bg-purple-500/10' }
   return (
     <div className="space-y-4">
       <Card className="border-border/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2"><Brain className="w-4 h-4" />Provider-Agnostic AI Router</CardTitle>
-          <CardDescription>Multiple LLM providers, automatic fallback, per-org model selection</CardDescription>
+          <CardDescription>Multiple LLM providers, automatic fallback, tool permission gating, custom agents</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
               { title: '3 Providers', desc: 'OpenAI (GPT-4o, o3-mini), Anthropic (Claude 4), Google (Gemini 2.5)', color: 'from-blue-500/10 to-indigo-500/10' },
-              { title: 'AI Router', desc: 'Tier-based model selection: free/standard/premium with auto-fallback', color: 'from-purple-500/10 to-pink-500/10' },
-              { title: 'Tool System', desc: '6 built-in tools: org stats, domains, modules, members, audit logs', color: 'from-emerald-500/10 to-teal-500/10' },
-              { title: 'Agent Framework', desc: '2 system agents: General Assistant (OpenAI) + Business Analyst (Anthropic)', color: 'from-amber-500/10 to-orange-500/10' },
+              { title: '7 Models', desc: 'Tier-based: free (3), standard (4), premium (0) with auto-fallback', color: 'from-purple-500/10 to-pink-500/10' },
+              { title: '6 Tools + Permissions', desc: 'Each tool gated by permission — viewers cannot access audit logs', color: 'from-emerald-500/10 to-teal-500/10' },
+              { title: '2 System + Custom Agents', desc: 'General Assistant, Analyst + org-level custom agent configs', color: 'from-amber-500/10 to-orange-500/10' },
               { title: 'Conversation Memory', desc: 'Multi-turn chat persisted per org/user with token tracking', color: 'from-cyan-500/10 to-blue-500/10' },
-              { title: 'Streaming', desc: 'Vercel AI SDK streaming with tool call support', color: 'from-rose-500/10 to-pink-500/10' },
+              { title: 'Streaming + Tools', desc: 'Vercel AI SDK streaming with tool call support', color: 'from-rose-500/10 to-pink-500/10' },
             ].map(item => (
               <div key={item.title} className={`p-3 rounded-lg border border-border/50 bg-gradient-to-br ${item.color}`}>
                 <p className="text-sm font-semibold">{item.title}</p>
@@ -361,22 +365,115 @@ function AiCoreTab({ aiResult, aiLoading, onRunTest }: { aiResult: TestResult | 
         </CardContent>
       </Card>
 
+      {/* Model Registry */}
       <Card className="border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Zap className="w-4 h-4" />Phase 4 API Endpoints</CardTitle><CardDescription>AI chat, conversations, agents, models, usage (7 new endpoints)</CardDescription></CardHeader>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2"><Zap className="w-4 h-4" />Model Registry</CardTitle>
+              <CardDescription>{aiModels ? `${aiModels.models.length} models, ${aiModels.configuredProviders.length} provider(s) configured` : 'Loading...'}</CardDescription>
+            </div>
+            {aiModels && aiModels.configuredProviders.length > 0 && (
+              <div className="flex gap-1.5">
+                {aiModels.configuredProviders.map(p => (
+                  <Badge key={p.provider} variant="outline" className={`text-[10px] capitalize ${providerColors[p.provider] ?? ''}`}>{p.provider} ({p.modelCount})</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1.5">
+            {aiModels ? aiModels.models.map(m => (
+              <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                <Badge variant="outline" className={`text-[10px] capitalize px-1.5 shrink-0 ${providerColors[m.provider] ?? ''}`}>{m.provider}</Badge>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{m.displayName}</p>
+                  <code className="text-[10px] text-muted-foreground font-mono">{m.id}</code>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {m.capabilities.vision && <Badge variant="outline" className="text-[9px] px-1 bg-violet-500/10 text-violet-600 border-violet-500/20">Vision</Badge>}
+                  {m.capabilities.toolUse && <Badge variant="outline" className="text-[9px] px-1 bg-teal-500/10 text-teal-600 border-teal-500/20">Tools</Badge>}
+                  <Badge variant="outline" className={`text-[9px] px-1 ${tierColors[m.tier] ?? ''}`}>{m.tier}</Badge>
+                </div>
+              </div>
+            )) : <div className="flex items-center gap-2 text-sm text-muted-foreground py-4"><Loader2 className="w-4 h-4 animate-spin" />Loading model registry...</div>}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Agents + Tools */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="border-border/50">
+          <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Bot className="w-4 h-4" />Agent Registry</CardTitle><CardDescription>System agents (always available) + org custom agents</CardDescription></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">System Agents</p>
+              {[
+                { name: 'General Assistant', provider: 'OpenAI', model: 'gpt-4o-mini', tools: 6, icon: 'Bot' },
+                { name: 'Business Analyst', provider: 'Anthropic', model: 'Claude Sonnet 4', tools: 5, icon: 'BarChart3' },
+              ].map(a => (
+                <div key={a.name} className="flex items-center gap-3 p-2.5 rounded-lg border border-border/50">
+                  <div className="w-8 h-8 rounded-md bg-gradient-to-br from-purple-500/10 to-pink-500/10 flex items-center justify-center shrink-0"><Bot className="w-4 h-4 text-purple-600" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{a.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{a.provider} / {a.model} &middot; {a.tools} tools</p>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider pt-2">Custom Agents (per org)</p>
+              <div className="flex items-center gap-2 p-2.5 rounded-lg border border-dashed border-border/50 text-xs text-muted-foreground">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Manage via <code className="font-mono text-foreground">POST /api/ai/agents</code></span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Cpu className="w-4 h-4" />Tool Registry + Permissions</CardTitle><CardDescription>6 tools, each gated by user permissions</CardDescription></CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              {[
+                { name: 'list_organizations', perm: 'organization.view' },
+                { name: 'list_active_domains', perm: 'domain.view' },
+                { name: 'list_active_modules', perm: 'module.view' },
+                { name: 'list_organization_members', perm: 'member.view' },
+                { name: 'get_organization_stats', perm: 'organization.view' },
+                { name: 'search_audit_logs', perm: 'audit.view' },
+              ].map(t => (
+                <div key={t.name} className="flex items-center gap-3 p-2 rounded-md border border-border/50">
+                  <code className="text-xs font-mono text-foreground flex-1 truncate">{t.name}</code>
+                  <Badge variant="outline" className="text-[9px] px-1 shrink-0 font-mono">{t.perm}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* API Endpoints */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Globe className="w-4 h-4" />Phase 4 API Endpoints</CardTitle><CardDescription>AI chat, conversations, agents (CRUD), tools, models, usage — 12 endpoints</CardDescription></CardHeader>
         <CardContent>
           <div className="space-y-1.5">
             {[
               { method: 'GET', path: '/api/ai/models', desc: 'List models + configured providers' },
+              { method: 'GET', path: '/api/ai/tools', desc: 'List tools with permission requirements' },
               { method: 'GET', path: '/api/ai/agents', desc: 'List system + custom agents' },
-              { method: 'POST', path: '/api/ai/chat', desc: 'Send message (streaming response)' },
+              { method: 'POST', path: '/api/ai/agents', desc: 'Create custom agent for org' },
+              { method: 'GET', path: '/api/ai/agents/:slug', desc: 'Get custom agent config' },
+              { method: 'PATCH', path: '/api/ai/agents/:slug', desc: 'Update custom agent' },
+              { method: 'DELETE', path: '/api/ai/agents/:slug', desc: 'Archive custom agent' },
+              { method: 'POST', path: '/api/ai/chat', desc: 'Send message (streaming)' },
               { method: 'GET', path: '/api/ai/conversations', desc: 'List user conversations' },
               { method: 'GET', path: '/api/ai/conversations/:id', desc: 'Conversation with messages' },
-              { method: 'DELETE', path: '/api/ai/conversations', desc: 'Archive a conversation' },
+              { method: 'PATCH', path: '/api/ai/conversations/:id', desc: 'Update conversation title' },
               { method: 'GET', path: '/api/ai/usage', desc: 'AI usage statistics' },
               { method: 'POST', path: '/api/test/ai-core', desc: 'Run 11 AI core tests' },
             ].map(ep => (
               <div key={ep.method + ep.path} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/30 transition-colors font-mono text-xs">
-                <Badge variant="outline" className={`text-[10px] px-1.5 shrink-0 font-mono ${ep.method === 'GET' ? 'text-emerald-600' : ep.method === 'POST' ? 'text-blue-600' : 'text-red-600'}`}>{ep.method}</Badge>
+                <Badge variant="outline" className={`text-[10px] px-1.5 shrink-0 font-mono ${ep.method === 'GET' ? 'text-emerald-600' : ep.method === 'POST' ? 'text-blue-600' : ep.method === 'PATCH' ? 'text-amber-600' : 'text-red-600'}`}>{ep.method}</Badge>
                 <span className="text-foreground truncate">{ep.path}</span>
                 <span className="text-muted-foreground font-sans text-[11px] hidden sm:inline truncate max-w-[200px]">{ep.desc}</span>
               </div>

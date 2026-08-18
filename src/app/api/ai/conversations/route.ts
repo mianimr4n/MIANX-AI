@@ -13,7 +13,7 @@ import { apiEnvelope } from '@/core/tenancy/utils'
 export const GET = withAuth(async (_request, ctx) => {
   const conversations = await listConversations(ctx.organizationId, ctx.user.id)
   return NextResponse.json(apiEnvelope(conversations))
-}, { permission: 'domain.view' })
+}, { permission: 'ai.conversations.view' })
 
 /** DELETE /api/ai/conversations — Archive a conversation by ID in body */
 export const DELETE = withAuth(async (request, ctx) => {
@@ -27,4 +27,4 @@ export const DELETE = withAuth(async (request, ctx) => {
     console.error('[DELETE /api/ai/conversations]', error)
     return NextResponse.json(apiEnvelope(null, 'Failed to archive conversation'), { status: 400 })
   }
-}, { permission: 'domain.view' })
+}, { permission: 'ai.conversations.view' })

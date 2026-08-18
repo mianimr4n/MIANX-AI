@@ -259,6 +259,76 @@ async function main() {
   ])
   console.log('  ✓ Created sample notifications')
 
+  // ══════════════════════════════════════════════════════════════
+  // AI CORE (Phase 4 — AI Core Foundation)
+  // ══════════════════════════════════════════════════════════════
+
+  // ── Custom Agent Configs ──
+  const agentConfigs = await Promise.all([
+    prisma.agentConfig.create({
+      data: {
+        organizationId: orgs[0].id, slug: 'farm-advisor', name: 'Farm Advisor',
+        description: 'Specialized in poultry farm operations, feed optimization, and flock health',
+        systemPrompt: `You are Poultry Farm Co's AI Farm Advisor. You specialize in:
+- Flock management and batch tracking
+- Feed formulation and cost optimization
+- Health monitoring and vaccination schedules
+- Sales forecasting and procurement planning
+
+Always reference actual data from the tools. Use Urdu terms when appropriate for the Pakistani context.
+Be specific and actionable in your recommendations.`,
+        model: 'gpt-4o-mini', provider: 'openai', temperature: 0.5, maxTokens: 4096,
+        tools: JSON.stringify(['list_active_domains', 'list_active_modules', 'get_organization_stats', 'list_organization_members']),
+      },
+    }),
+    prisma.agentConfig.create({
+      data: {
+        organizationId: orgs[1].id, slug: 'menu-optimizer', name: 'Menu Optimizer',
+        description: 'Helps optimize restaurant menu items, pricing, and ingredient costs',
+        systemPrompt: `You are Fresh Restaurants' Menu Optimizer AI. You help with:
+- Menu item pricing and profitability analysis
+- Ingredient cost tracking
+- Seasonal menu recommendations
+- Customer preference analysis
+
+Always use tools to get real data. Focus on actionable cost-saving insights.`,
+        model: 'claude-haiku-4-20250414', provider: 'anthropic', temperature: 0.4, maxTokens: 4096,
+        tools: JSON.stringify(['get_organization_stats', 'list_active_modules', 'search_audit_logs']),
+      },
+    }),
+  ])
+  console.log(`  ✓ Created ${agentConfigs.length} custom agent configs`)
+
+  // ── Sample Conversations ──
+  const sampleConvos = await Promise.all([
+    prisma.conversation.create({
+      data: { organizationId: orgs[0].id, userId: profiles[0].userId, title: 'Flock health check recommendations', agentSlug: 'general-assistant' },
+    }),
+    prisma.conversation.create({
+      data: { organizationId: orgs[0].id, userId: profiles[0].userId, title: 'Feed cost analysis Q1', agentSlug: 'farm-advisor' },
+    }),
+    prisma.conversation.create({
+      data: { organizationId: orgs[1].id, userId: profiles[0].userId, title: 'Menu pricing review', agentSlug: 'menu-optimizer', status: 'archived' },
+    }),
+  ])
+  console.log(`  ✓ Created ${sampleConvos.length} sample conversations`)
+
+  // ── Sample Messages ──
+  await Promise.all([
+    // Convo 1 messages
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[0].id, role: 'user', content: 'What vaccinations are due this month for our flocks?' } }),
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[0].id, role: 'assistant', content: 'Let me check your current flock data and vaccination schedules. Based on the Poultry OS domain data, I recommend scheduling Newcastle disease booster and infectious bronchitis vaccination for all active flocks this month.', model: 'gpt-4o-mini', provider: 'openai', tokensIn: 45, tokensOut: 38, latencyMs: 320 } }),
+    // Convo 2 messages
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'user', content: 'Analyze our feed costs for last quarter' } }),
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'assistant', content: 'Based on your organization data, you have 2 active modules including Feed Management. The feed costs have been tracked across your active flocks. I recommend reviewing the feed formulation ratios — switching to a locally-sourced soy alternative could reduce costs by 12-15%.', model: 'gpt-4o-mini', provider: 'openai', tokensIn: 52, tokensOut: 56, latencyMs: 410 } }),
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'user', content: 'Which supplier has the best rates?' } }),
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[1].id, role: 'assistant', content: 'I don\'t have a supplier comparison tool available yet. However, I can search your audit logs for procurement records. Would you like me to do that?', model: 'gpt-4o-mini', provider: 'openai', tokensIn: 28, tokensOut: 34, latencyMs: 280 } }),
+    // Convo 3 messages
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[2].id, role: 'user', content: 'Review our top 5 menu items for profitability' } }),
+    prisma.aiMessage.create({ data: { conversationId: sampleConvos[2].id, role: 'assistant', content: 'Your restaurant has Menu Management and Order Management modules active. Based on the current data, I can see your organization is set up with USD currency. For a detailed profitability analysis, I\'d need access to cost and pricing data from the Menu module — which will be available once the domain data is fully integrated.', model: 'claude-haiku-4-20250414', provider: 'anthropic', tokensIn: 48, tokensOut: 62, latencyMs: 550 } }),
+  ])
+  console.log('  ✓ Created 7 sample messages across 3 conversations')
+
   console.log('\n✅ Seed complete! Summary:')
   console.log(`   Organizations: ${orgs.length}`)
   console.log(`   Profiles: ${profiles.length}`)
@@ -270,6 +340,8 @@ async function main() {
   console.log(`   Org-Domains: ${orgDomains.length}`)
   console.log(`   Org-Modules: ${orgModules.length}`)
   console.log(`   Teams: ${teams.length}`)
+  console.log(`   Agent Configs: ${agentConfigs.length}`)
+  console.log(`   Conversations: ${sampleConvos.length}`)
 }
 
 main()

@@ -1,10 +1,11 @@
 /**
  * MIANX.AI — Single Conversation API
- * GET /api/ai/conversations/:id — Get conversation with messages
+ * GET    /api/ai/conversations/:id — Get conversation with messages
+ * PATCH  /api/ai/conversations/:id — Update conversation title
  */
 
-import { NextResponse } from 'next/server'
-import { getConversation } from '@/ai'
+import { NextRequest, NextResponse } from 'next/server'
+import { getConversation, updateConversationTitle, archiveConversation } from '@/ai'
 import { withAuthParams } from '@/core/authorization'
 import { apiEnvelope } from '@/core/tenancy/utils'
 
@@ -21,4 +22,34 @@ export const GET = withAuthParams(async (
   }
 
   return NextResponse.json(apiEnvelope(conversation))
-}, { permission: 'domain.view' })
+}, { permission: 'ai.conversations.view' })
+
+/** PATCH /api/ai/conversations/:id — Update title */
+export const PATCH = withAuthParams(async (
+  request,
+  ctx,
+  { id }
+) => {
+  try {
+    const body = await request.json()
+    const { title } = body
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return NextResponse.json(apiEnvelope(null, 'title is required (non-empty string)'), { status: 400 })
+    }
+
+    if (title.length > 200) {
+      return NextResponse.json(apiEnvelope(null, 'Title too long (max 200 chars)'), { status: 400 })
+    }
+
+    const updated = await updateConversationTitle(id, ctx.organizationId, title.trim())
+    return NextResponse.json(apiEnvelope(updated, 'Title updated'))
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to update conversation'
+    if (msg.includes('not found')) {
+      return NextResponse.json(apiEnvelope(null, msg), { status: 404 })
+    }
+    console.error('[PATCH /api/ai/conversations/:id]', error)
+    return NextResponse.json(apiEnvelope(null, msg), { status: 400 })
+  }
+}, { permission: 'ai.conversations.view' })

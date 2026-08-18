@@ -6,7 +6,7 @@
 import { streamText, type CoreMessage } from 'ai'
 import type { AIProvider, ChatOptions, ChatResult, ToolContext } from './types'
 import { getLanguageModel, parseModelId, getDefaultModel, isProviderConfigured } from './router'
-import { getToolsByNames, toAISDKTools, listTools } from './tools'
+import { getToolsByNames, toAISDKTools, listTools, filterToolsByPermission } from './tools'
 import { createConversation, addMessage, getConversationMessages } from './memory'
 import { getSystemAgent } from './agents'
 
@@ -32,14 +32,16 @@ function resolveSystemPrompt(opts: ChatOptions): string {
   return 'You are a helpful assistant for Mianx.ai, an AI-Native Business Operating System. Help the user with their organization data and configuration.'
 }
 
-/** Resolve tools: explicit agent config > all available */
+/** Resolve tools: explicit agent config > all available, filtered by permissions */
 function resolveTools(opts: ChatOptions, context: ToolContext) {
   let toolNames: string[] | undefined
   if (opts.metadata?.agentSlug) {
     const agent = getSystemAgent(opts.metadata.agentSlug as string)
     toolNames = agent?.tools
   }
-  const tools = toolNames ? getToolsByNames(toolNames) : listTools()
+  let tools = toolNames ? getToolsByNames(toolNames) : listTools()
+  // Filter tools the user doesn't have permission for
+  tools = filterToolsByPermission(tools, context.permissions)
   return toAISDKTools(tools, context)
 }
 

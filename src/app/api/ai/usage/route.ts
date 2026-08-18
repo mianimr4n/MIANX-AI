@@ -12,4 +12,4 @@ import { apiEnvelope } from '@/core/tenancy/utils'
 export const GET = withAuth(async (_request, ctx) => {
   const stats = await getUsageStats(ctx.organizationId)
   return NextResponse.json(apiEnvelope(stats))
-}, { permission: 'domain.view' })
+}, { permission: 'ai.conversations.view' })

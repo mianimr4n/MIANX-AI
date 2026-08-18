@@ -53,6 +53,7 @@ export interface ToolDefinition {
   name: string
   description: string
   parameters: Record<string, unknown>
+  requiredPermission?: string  // e.g. 'audit.view' — if set, the user must have this permission
   execute: (args: Record<string, unknown>, context: ToolContext) => Promise<string>
 }
 
@@ -62,6 +63,7 @@ export interface ToolContext {
   userId: string
   membershipId: string
   roles: string[]
+  permissions: string[]
 }
 
 /** Options for a chat completion request */

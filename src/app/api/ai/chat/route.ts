@@ -3,7 +3,7 @@
  * POST /api/ai/chat — Send a message and get streaming response
  */
 
-import { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { sendMessage } from '@/ai'
 import { withAuth } from '@/core/authorization'
 import { apiEnvelope } from '@/core/tenancy/utils'
@@ -28,6 +28,7 @@ export const POST = withAuth(async (request, ctx) => {
         userId: ctx.user.id,
         membershipId: ctx.membershipId,
         roles: ctx.roles.map(r => r.slug),
+        permissions: ctx.permissions,
       },
       {
         conversationId,
@@ -51,4 +52,4 @@ export const POST = withAuth(async (request, ctx) => {
     console.error('[POST /api/ai/chat]', error)
     return NextResponse.json(apiEnvelope(null, msg), { status: 500 })
   }
-}, { permission: 'domain.view' })
+}, { permission: 'ai.chat' })

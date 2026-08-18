@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════
 // MIANX.AI — Tool Registry
 // Defines tools that AI agents can invoke
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 
 import { tool } from 'ai'
 import { z } from 'zod'
@@ -14,6 +14,7 @@ const listOrganizationsTool: ToolDefinition = {
   name: 'list_organizations',
   description: 'List all organizations the user has access to. Returns org names, slugs, and member counts.',
   parameters: {},
+  requiredPermission: 'organization.view',
   async execute(_args, ctx) {
     const memberships = await db.organizationMembership.findMany({
       where: { userId: ctx.userId, status: 'active' },
@@ -27,6 +28,7 @@ const listDomainsTool: ToolDefinition = {
   name: 'list_active_domains',
   description: 'List all domains activated for the current organization with their module counts.',
   parameters: {},
+  requiredPermission: 'domain.view',
   async execute(_args, ctx) {
     const orgDomains = await db.organizationDomain.findMany({
       where: { organizationId: ctx.organizationId, status: 'active' },
@@ -40,6 +42,7 @@ const listModulesTool: ToolDefinition = {
   name: 'list_active_modules',
   description: 'List all modules currently active for the organization, grouped by domain.',
   parameters: {},
+  requiredPermission: 'module.view',
   async execute(_args, ctx) {
     const orgModules = await db.organizationModule.findMany({
       where: { organizationId: ctx.organizationId, status: 'active' },
@@ -53,6 +56,7 @@ const listMembersTool: ToolDefinition = {
   name: 'list_organization_members',
   description: 'List all members of the current organization with their roles.',
   parameters: {},
+  requiredPermission: 'member.view',
   async execute(_args, ctx) {
     const memberships = await db.organizationMembership.findMany({
       where: { organizationId: ctx.organizationId, status: 'active' },
@@ -69,6 +73,7 @@ const getOrgStatsTool: ToolDefinition = {
   name: 'get_organization_stats',
   description: 'Get statistics about the current organization: member count, team count, active domains, active modules.',
   parameters: {},
+  requiredPermission: 'organization.view',
   async execute(_args, ctx) {
     const [members, teams, domains, modules] = await Promise.all([
       db.organizationMembership.count({ where: { organizationId: ctx.organizationId, status: 'active' } }),
@@ -87,6 +92,7 @@ const searchAuditLogsTool: ToolDefinition = {
     type: 'object',
     properties: { action: { type: 'string', description: 'Filter by action (e.g. "create", "update", "delete")' } },
   },
+  requiredPermission: 'audit.view',
   async execute(args, ctx) {
     const where: Record<string, unknown> = { organizationId: ctx.organizationId }
     if (args.action) where.action = { contains: String(args.action) }
@@ -126,6 +132,29 @@ export function getToolsByNames(names: string[]): ToolDefinition[] {
   return names.map(n => toolMap.get(n)).filter(Boolean) as ToolDefinition[]
 }
 
+/** Check if a user has a specific permission (wildcard-aware) */
+function hasPermission(permissions: string[], required: string): boolean {
+  if (permissions.includes('*')) return true
+  if (permissions.includes(required)) return true
+  // Check wildcard patterns: e.g. '*.view' or 'audit.*'
+  const parts = required.split('.')
+  for (const perm of permissions) {
+    const pp = perm.split('.')
+    if (pp.length !== parts.length) continue
+    const match = pp.every((p, i) => p === '*' || p === parts[i])
+    if (match) return true
+  }
+  return false
+}
+
+/** Filter tools based on user permissions — removes tools the user can't access */
+export function filterToolsByPermission(tools: ToolDefinition[], permissions: string[]): ToolDefinition[] {
+  return tools.filter(t => {
+    if (!t.requiredPermission) return true  // No permission required
+    return hasPermission(permissions, t.requiredPermission)
+  })
+}
+
 /** Convert tool definitions to AI SDK tool objects */
 export function toAISDKTools(tools: ToolDefinition[], context: ToolContext) {
   const result: Record<string, ReturnType<typeof tool>> = {}
@@ -143,6 +172,10 @@ export function toAISDKTools(tools: ToolDefinition[], context: ToolContext) {
       ) : {}),
       execute: async (args) => {
         const raw = args as Record<string, unknown>
+        // Permission gate at execution time (defense in depth)
+        if (t.requiredPermission && !hasPermission(context.permissions, t.requiredPermission)) {
+          return JSON.stringify({ error: `Permission denied: ${t.requiredPermission} required` })
+        }
         return t.execute(raw, context)
       },
     })

@@ -32,6 +32,7 @@ export {
   listTools,
   getTool,
   getToolsByNames,
+  filterToolsByPermission,
   toAISDKTools,
 } from './tools'
 
@@ -57,3 +58,14 @@ export {
   streamChat,
   sendMessage,
 } from './chat'
+
+export {
+  createAgentConfig,
+  listAgentConfigs,
+  getAgentConfig,
+  updateAgentConfig,
+  deleteAgentConfig,
+  resolveAgent,
+  type CreateAgentConfigData,
+  type UpdateAgentConfigData,
+} from './agent-config'
