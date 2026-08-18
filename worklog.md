@@ -209,3 +209,40 @@ Stage Summary:
 - Clean build confirmed
 
 ---
+---
+Task ID: 8
+Agent: Main Agent
+Task: Phase 8 — Frontend Platform (complete build)
+
+Work Log:
+- Audited existing frontend: 44 shadcn/ui primitives, 0 composites, 0 app shell, 0 pages, dead tailwind.config.ts
+- Fixed tailwind.config.ts (removed dead hsl() config, kept plugin-only for Tailwind v4 compatibility)
+- Added complete design token system: typography scale (9 levels), status colors (success/warning/info), surface tokens, shadow tokens (8 levels), motion tokens (duration + easing), z-index tokens (8 layers), breakpoint tokens, RTL readiness CSS, reduced-motion support, skip-to-content, sr-only, focus-visible styling
+- Added dark theme status/surface color variants
+- Wired ThemeProvider (next-themes) into root layout
+- Built state architecture: Providers (QueryClient, Organization, Domain), Zustand UI store, usePermissions hook
+- Created 7 composite components: EmptyState, ErrorState, PermissionDenied, KPICard, PageHeader, StatusBadge, DataTable
+- Built App Shell: collapsible sidebar (shadcn Sidebar), global header, main workspace area
+- Built Organization Switcher (dropdown for multi-org, inline for single-org)
+- Built Domain Switcher (dropdown for multi-domain, inline for single-domain, loading state)
+- Built permission-aware sidebar navigation (10 items, filtered by user permissions)
+- Built AI Workspace slide-over panel (conversation UI, context bar, tool status, action approval flow)
+- Built domain UI manifest framework (typed registry, widget contract)
+- Built navigation config (core nav + command center nav)
+- Replaced 65KB monolithic health dashboard with proper app shell + home dashboard
+- Added route boundaries: loading.tsx (skeleton), error.tsx (actionable), not-found.tsx (empty state)
+- Fixed 3 runtime bugs: API pagination response unwrapping for orgs, domains, permissions
+- Verified all interactions via agent-browser: sidebar toggle, org switching, domain switching, AI workspace, dark/light theme, mobile responsive layout
+- Updated APP_VERSION to 0.8.0, Phase 8 status to completed
+
+Stage Summary:
+- 20+ new files created across components/layout, components/composite, providers, stores, hooks, lib
+- 44 shadcn primitives + 7 composites + 6 layout components
+- Full app shell with org/domain context, permission-aware nav, AI workspace, theme system
+- DataTable with sort/filter/paginate/select/bulk/export/loading/empty states
+- Design token system: typography, spacing, shadows, motion, z-index, breakpoints, status colors, surface
+- Accessibility: skip-to-content, semantic HTML landmarks, focus-visible, reduced-motion, sr-only, ARIA labels
+- RTL readiness: logical CSS property classes, dir=rtl support
+- Responsive: desktop/tablet/mobile layouts verified
+- 0 new lint errors introduced (3 pre-existing errors from earlier phases remain)
+- Screenshot saved: /home/z/my-project/download/mianx-phase8-frontend.png
