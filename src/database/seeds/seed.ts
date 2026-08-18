@@ -14,9 +14,18 @@ async function main() {
   await prisma.membershipRole.deleteMany()
   await prisma.rolePermission.deleteMany()
   await prisma.teamMember.deleteMany()
+  // Automation tables (depend on Organization)
+  await prisma.workflowStepRun.deleteMany()
+  await prisma.approval.deleteMany()
+  await prisma.workflowRun.deleteMany()
+  await prisma.workflow.deleteMany()
+  await prisma.job.deleteMany()
+  await prisma.event.deleteMany()
+  // AI tables (depend on Organization)
   await prisma.aiMessage.deleteMany()
   await prisma.conversation.deleteMany()
   await prisma.agentConfig.deleteMany()
+  // Domain tables
   await prisma.organizationModule.deleteMany()
   await prisma.organizationDomain.deleteMany()
   await prisma.organizationMembership.deleteMany()
@@ -98,6 +107,7 @@ async function main() {
     prisma.permission.create({ data: { key: 'ai.agents.manage', description: 'Create and configure AI agents' } }),
     prisma.permission.create({ data: { key: 'ai.usage.admin', description: 'View AI usage statistics and costs' } }),
     // Automation permissions
+    prisma.permission.create({ data: { key: 'automation.events.view', description: 'View event history and details' } }),
     prisma.permission.create({ data: { key: 'automation.events.manage', description: 'Publish and manage events' } }),
     prisma.permission.create({ data: { key: 'automation.workflows.view', description: 'View workflows and runs' } }),
     prisma.permission.create({ data: { key: 'automation.workflows.manage', description: 'Create and configure workflows' } }),
@@ -409,9 +419,9 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
         description: 'Notify when feed stock falls below threshold',
         triggerType: 'event',
         triggerConfig: JSON.stringify({ eventType: 'poultry.inventory.low' }),
-        conditions: JSON.stringify([{ field: 'payload.currentStock', operator: 'lt', value: 'payload.threshold' }]),
+        conditions: JSON.stringify([{ field: 'payload.currentStock', operator: 'lt', value: 200 }]),
         steps: JSON.stringify([
-          { id: 'check', name: 'Verify Stock Level', type: 'condition', config: { field: 'payload.currentStock', operator: 'lt', value: 'payload.threshold' } },
+          { id: 'check', name: 'Verify Stock Level', type: 'condition', config: { field: 'payload.currentStock', operator: 'lt', value: 200 } },
           { id: 'notify', name: 'Send Alert', type: 'action', config: { type: 'send_notification', params: { type: 'alert', title: 'Low Feed Stock', body: 'Feed inventory is below threshold. Consider reordering.' } } },
         ]),
         timeoutSeconds: 60,

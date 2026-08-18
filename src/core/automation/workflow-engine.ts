@@ -378,6 +378,15 @@ export async function executeWorkflowRun(
     data: { status: 'running', startedAt: run.startedAt ?? new Date() },
   });
 
+  // Track execution start for timeout enforcement
+  const executionStartedAt = run.startedAt ?? new Date();
+  const timeoutMs = run.workflow.timeoutSeconds * 1000;
+
+  /** Check if the run has exceeded its timeout */
+  function isTimedOut(): boolean {
+    return Date.now() - executionStartedAt.getTime() > timeoutMs;
+  }
+
   // Evaluate workflow-level entry conditions (skip on resume)
   if (resumeAfterStep === undefined && conditions.length > 0 && !evaluateAllConditions(conditions, context)) {
     await db.workflowRun.update({
@@ -409,6 +418,16 @@ export async function executeWorkflowRun(
   for (let i = startStep; i < steps.length; i++) {
     const step = steps[i];
     context.currentStepIndex = i;
+
+    // Check timeout before each step
+    if (isTimedOut()) {
+      await db.workflowRun.update({
+        where: { id: run.id },
+        data: { status: 'timed_out', error: `Workflow exceeded timeout of ${run.workflow.timeoutSeconds}s`, completedAt: new Date() },
+      });
+      console.warn(`[workflow-engine] Run ${run.id} timed out after ${run.workflow.timeoutSeconds}s at step ${i}`);
+      return;
+    }
 
     // Update current step index
     await db.workflowRun.update({

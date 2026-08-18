@@ -15,7 +15,7 @@ const VALID_EVENT_STATUSES = ['pending', 'delivered', 'failed', 'dead_lettered']
 
 type EventStatusFilter = (typeof VALID_EVENT_STATUSES)[number]
 
-// GET /api/events — List events for organization (requires auth, no specific permission)
+// GET /api/events — List events for organization
 export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
   const { searchParams } = request.nextUrl
 
@@ -52,7 +52,7 @@ export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
       },
     }),
   )
-})
+}, { anyPermission: ['automation.events.view', 'automation.events.manage'] })
 
 // POST /api/events — Publish a new event
 export const POST = withAuth(async (request: NextRequest, ctx: AuthContext) => {

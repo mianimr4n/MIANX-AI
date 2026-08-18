@@ -178,14 +178,20 @@ async function resumeWorkflowAfterApproval(
   }
 
   if (decision === 'approved') {
-    // Extract the step index from the approval's requestedAction
+    // Find the approval record for this workflow run to extract step index
     let resumeAfterStep: number | undefined;
     try {
-      const action = JSON.parse(approval.requestedAction);
-      if (typeof action.stepIndex === 'number') {
-        resumeAfterStep = action.stepIndex;
+      const approvalRecord = await db.approval.findFirst({
+        where: { workflowRunId, decision: 'approved' },
+        orderBy: { decidedAt: 'desc' },
+      });
+      if (approvalRecord) {
+        const action = JSON.parse(approvalRecord.requestedAction);
+        if (typeof action.stepIndex === 'number') {
+          resumeAfterStep = action.stepIndex;
+        }
       }
-    } catch { /* ignore */ }
+    } catch { /* ignore parse errors */ }
 
     await db.workflowRun.update({
       where: { id: workflowRunId },
