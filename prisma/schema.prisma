@@ -72,6 +72,16 @@ model Organization {
   usageRecords   UsageRecord[]
   invoices       Invoice[]
   incidents      Incident[]
+  poultryFarms  PoultryFarm[]
+  poultrySheds  PoultryShed[]
+  poultryFlocks PoultryFlock[]
+  poultryFeedRecords    PoultryFeedRecord[]
+  poultryHealthRecords  PoultryHealthRecord[]
+  poultryMortalityRecords PoultryMortalityRecord[]
+  poultryProductionRecords PoultryProductionRecord[]
+  poultryCustomers PoultryCustomer[]
+  poultrySales   PoultrySale[]
+  poultryProcurements PoultryProcurement[]
 }
 
 model Profile {
@@ -1018,4 +1028,243 @@ model SLOPeriod {
   sloTarget SLOTarget @relation(fields: [sloTargetId], references: [id], onDelete: Cascade)
 
   @@index([sloTargetId, periodStart])
+}
+
+// ── POULTRY OS DOMAIN TABLES ──────────────────────────────────
+// First production domain — validates multi-domain architecture
+// ZERO poultry-specific logic exists inside Core code
+
+enum PoultryFarmStatus {
+  active
+  inactive
+  under_maintenance
+}
+
+enum PoultryShedType {
+  broiler
+  layer
+  breeder
+  mixed
+}
+
+enum PoultryFlockStatus {
+  placed
+  growing
+  laying
+  molting
+  depleted
+  deceased
+}
+
+enum PoultryHealthType {
+  vaccination
+  treatment
+  checkup
+  emergency
+}
+
+enum PoultryProcurementType {
+  chick
+  feed
+  medicine
+  equipment
+  supplies
+}
+
+enum PoultrySaleStatus {
+  pending
+  completed
+  cancelled
+}
+
+model PoultryFarm {
+  id             String            @id @default(cuid())
+  organizationId String
+  name           String
+  location       String
+  capacity       Int               @default(0)
+  status         PoultryFarmStatus @default(active)
+  contactInfo    String?
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  sheds       PoultryShed[]
+
+  @@index([organizationId, status])
+}
+
+model PoultryShed {
+  id             String         @id @default(cuid())
+  organizationId String
+  farmId         String
+  name           String
+  shedType       PoultryShedType @default(broiler)
+  capacity       Int            @default(0)
+  currentCount   Int            @default(0)
+  temperature    Float?
+  humidity       Float?
+  status         String         @default("active")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  farm         PoultryFarm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  flocks       PoultryFlock[]
+
+  @@index([organizationId, farmId])
+}
+
+model PoultryFlock {
+  id             String            @id @default(cuid())
+  organizationId String
+  shedId         String
+  breed          String
+  placementDate  DateTime
+  quantity       Int
+  currentCount   Int
+  status         PoultryFlockStatus @default(placed)
+  averageWeight  Float?
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  shed           PoultryShed   @relation(fields: [shedId], references: [id], onDelete: Cascade)
+  feedRecords    PoultryFeedRecord[]
+  healthRecords  PoultryHealthRecord[]
+  mortalityRecords PoultryMortalityRecord[]
+  productionRecords PoultryProductionRecord[]
+
+  @@index([organizationId, shedId])
+  @@index([organizationId, status])
+}
+
+model PoultryFeedRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  flockId        String
+  date           DateTime @default(now())
+  feedType       String
+  quantityKg     Float
+  costUsd        Float   @default(0)
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, flockId, date])
+}
+
+model PoultryHealthRecord {
+  id             String             @id @default(cuid())
+  organizationId String
+  flockId        String
+  date           DateTime           @default(now())
+  type           PoultryHealthType
+  treatment       String
+  veterinarian    String?
+  costUsd        Float              @default(0)
+  nextDueDate    DateTime?
+  notes          String?
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, flockId, date])
+}
+
+model PoultryMortalityRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  flockId        String
+  date           DateTime @default(now())
+  count          Int
+  cause          String
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, flockId, date])
+}
+
+model PoultryProductionRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  flockId        String
+  date           DateTime @default(now())
+  eggsCollected  Int      @default(0)
+  totalWeightKg  Float   @default(0)
+  feedConversionRatio Float?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, flockId, date])
+}
+
+model PoultryCustomer {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  sales       PoultrySale[]
+
+  @@unique([organizationId, name])
+}
+
+model PoultrySale {
+  id             String             @id @default(cuid())
+  organizationId String
+  customerId     String?
+  date           DateTime           @default(now())
+  items          String
+  totalAmount    Float              @default(0)
+  currency       String             @default("USD")
+  status         PoultrySaleStatus  @default(pending)
+  notes          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer    PoultryCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, date])
+  @@index([organizationId, status])
+}
+
+model PoultryProcurement {
+  id             String               @id @default(cuid())
+  organizationId String
+  type           PoultryProcurementType
+  supplier       String
+  description    String
+  quantity       Float
+  unit           String               @default("kg")
+  unitCostUsd    Float                @default(0)
+  totalCostUsd   Float                @default(0)
+  date           DateTime             @default(now())
+  deliveryDate   DateTime?
+  status         String               @default("received")
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, type, date])
 }
