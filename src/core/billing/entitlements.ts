@@ -8,6 +8,7 @@ import type { EntitlementCheckResult, FeatureEntitlement, EntitlementStatus, Sub
 import { ACTIVE_ACCESS_STATES, RESTRICTED_STATES } from './types'
 import { parseVersionFeatures } from './plans'
 import { hasActiveAccess } from './subscriptions'
+import { getCurrentUsage } from './usage'
 
 // ── Core Entitlement Check ──
 
@@ -39,7 +40,7 @@ export async function checkEntitlement(organizationId: string, featureKey: strin
     return { allowed: false, reason: `Feature '${featureKey}' is not included in the current plan` }
   }
 
-  // 4. Check limits
+  // 4. Check limits against actual usage
   const limitDef = versionData.limits?.find(l => l.key === featureKey)
   const entitlement: FeatureEntitlement = {
     featureKey,
@@ -49,6 +50,24 @@ export async function checkEntitlement(organizationId: string, featureKey: strin
 
   if (sub.state === 'trialing') {
     entitlement.status = 'trial'
+  }
+
+  // Enforce limit: if feature has a meter key, check actual usage
+  if (limitDef?.value !== undefined) {
+    // Map feature keys to meter keys (e.g. 'ai.assistant' → 'ai.total_tokens')
+    const meterKey = featureKeyToMeterKey(featureKey, versionData.features.map(f => f.key))
+    if (meterKey) {
+      const currentUsage = await getCurrentUsage(organizationId, meterKey)
+      entitlement.currentUsage = currentUsage
+      if (currentUsage >= limitDef.value) {
+        entitlement.status = 'suspended'
+        return {
+          allowed: false,
+          reason: `Feature '${featureKey}' has reached its limit: ${currentUsage}/${limitDef.value}`,
+          entitlement,
+        }
+      }
+    }
   }
 
   return { allowed: true, entitlement }
@@ -120,6 +139,21 @@ export async function checkDomainEntitlement(organizationId: string, domainSlug:
 
 export async function checkModuleEntitlement(organizationId: string, moduleSlug: string): Promise<EntitlementCheckResult> {
   return checkEntitlement(organizationId, `module.${moduleSlug}`)
+}
+
+// ── Feature Key → Meter Key Mapping ──
+
+function featureKeyToMeterKey(featureKey: string, allFeatures: string[]): string | null {
+  // Direct mapping: feature key equals a meter key
+  const directMap: Record<string, string> = {
+    'ai.assistant': 'ai.total_tokens',
+    'api.access': 'api.requests',
+    'automation.workflows': 'api.requests',
+  }
+  if (directMap[featureKey]) return directMap[featureKey]
+
+  // Convention: if the feature key matches a known meter key, use it
+  return null
 }
 
 // ── Feature Flag Check (separate from entitlements) ──

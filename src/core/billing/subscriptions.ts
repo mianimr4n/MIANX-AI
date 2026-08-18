@@ -7,6 +7,8 @@ import { db } from '@/lib/db'
 import type { SubscriptionState, DowngradeCheckResult, DowngradeAction } from './types'
 import { SUBSCRIPTION_TRANSITIONS, ACTIVE_ACCESS_STATES, NO_ACCESS_STATES } from './types'
 import { getLatestPlanVersion, parseVersionFeatures } from './plans'
+import { getCurrentUsage } from './usage'
+import { publishEvent } from '@/core/automation/events'
 
 function validateTransition(from: SubscriptionState, to: SubscriptionState) {
   const allowed = SUBSCRIPTION_TRANSITIONS[from]
@@ -48,7 +50,7 @@ export async function createSubscription(organizationId: string, planVersionId: 
 
   const { start, end } = getPeriodDates(planVersion.plan.billingCycle as 'monthly' | 'yearly')
 
-  return db.subscription.create({
+  const subscription = await db.subscription.create({
     data: {
       organizationId,
       planId: options?.planId ?? planVersion.planId,
@@ -61,6 +63,17 @@ export async function createSubscription(organizationId: string, planVersionId: 
     },
     include: { plan: true, planVersion: true },
   })
+
+  // Emit billing event
+  await publishEvent({
+    eventType: isTrial ? 'trial.started' : 'subscription.created',
+    organizationId,
+    sourceType: 'billing',
+    sourceId: subscription.id,
+    payload: { subscriptionId: subscription.id, planId: subscription.planId, planVersionId, state: subscription.state, seatCount: subscription.seatCount },
+  })
+
+  return subscription
 }
 
 // ── Transition State ──
@@ -89,11 +102,22 @@ export async function transitionSubscription(subscriptionId: string, newState: S
   }
   if (metadata) updates.metadata = JSON.stringify({ ...((sub.metadata && JSON.parse(sub.metadata)) || {}), ...metadata })
 
-  return db.subscription.update({
+  const updated = await db.subscription.update({
     where: { id: subscriptionId },
     data: updates,
     include: { plan: true, planVersion: true },
   })
+
+  // Emit billing event for state transition
+  await publishEvent({
+    eventType: `subscription.${newState}`,
+    organizationId: updated.organizationId,
+    sourceType: 'billing',
+    sourceId: updated.id,
+    payload: { subscriptionId: updated.id, from: sub.state, to: newState, metadata },
+  }).catch(err => console.error('[billing] Failed to emit transition event:', err))
+
+  return updated
 }
 
 // ── Upgrade ──
@@ -113,7 +137,7 @@ export async function upgradeSubscription(subscriptionId: string, newPlanVersion
 
   const { start, end } = getPeriodDates(newVersion.plan.billingCycle as 'monthly' | 'yearly')
 
-  return db.subscription.update({
+  const updated = await db.subscription.update({
     where: { id: subscriptionId },
     data: {
       planId: newVersion.planId,
@@ -129,6 +153,17 @@ export async function upgradeSubscription(subscriptionId: string, newPlanVersion
     },
     include: { plan: true, planVersion: true },
   })
+
+  // Emit upgrade event
+  await publishEvent({
+    eventType: 'subscription.upgraded',
+    organizationId: sub.organizationId,
+    sourceType: 'billing',
+    sourceId: updated.id,
+    payload: { subscriptionId: updated.id, previousPlanVersionId: sub.planVersionId, newPlanVersionId, planId: newVersion.planId },
+  }).catch(err => console.error('[billing] Failed to emit upgrade event:', err))
+
+  return updated
 }
 
 // ── Downgrade Safety ──
@@ -141,18 +176,16 @@ export async function checkDowngradeSafety(subscriptionId: string, newPlanVersio
   const newVersion = await db.planVersion.findUnique({ where: { id: newPlanVersionId } })
   if (!currentVersion || !newVersion) throw new Error('Plan version not found')
 
-  const currentData = parseVersionFeatures(currentVersion)
   const newData = parseVersionFeatures(newVersion)
 
   const conflicts: { feature: string; current: number; newLimit: number }[] = []
   for (const newLimit of newData.limits) {
-    const currentLimit = currentData.limits.find(l => l.key === newLimit.key)
-    if (currentLimit && newLimit.value < currentLimit.value) {
-      // In production, we'd check actual usage here
-      // For now, we just flag the limit decrease
+    // Check actual current usage against the new (lower) limit
+    const currentUsage = await getCurrentUsage(sub.organizationId, newLimit.key)
+    if (currentUsage > newLimit.value) {
       conflicts.push({
         feature: newLimit.key,
-        current: currentLimit.value,
+        current: currentUsage,
         newLimit: newLimit.value,
       })
     }
@@ -170,7 +203,21 @@ export async function downgradeSubscription(subscriptionId: string, newPlanVersi
   const check = await checkDowngradeSafety(subscriptionId, newPlanVersionId)
   if (!check.canDowngrade) throw new Error('Downgrade not safe')
 
-  return upgradeSubscription(subscriptionId, newPlanVersionId) // Same logic, just going to cheaper plan
+  const sub = await db.subscription.findUnique({ where: { id: subscriptionId } })
+  const previousPlanVersionId = sub?.planVersionId
+
+  const result = await upgradeSubscription(subscriptionId, newPlanVersionId) // Same logic, just going to cheaper plan
+
+  // Emit downgrade event (upgradeSubscription emits 'upgraded', override with 'downgraded')
+  await publishEvent({
+    eventType: 'subscription.downgraded',
+    organizationId: result.organizationId!,
+    sourceType: 'billing',
+    sourceId: result.id,
+    payload: { subscriptionId: result.id, previousPlanVersionId, newPlanVersionId, conflicts: check.conflicts },
+  }).catch(err => console.error('[billing] Failed to emit downgrade event:', err))
+
+  return result
 }
 
 // ── Cancel ──

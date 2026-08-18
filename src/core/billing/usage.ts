@@ -77,7 +77,18 @@ export async function recordUsage(params: {
 
   // Get meter config
   const meter = await db.usageMeter.findUnique({ where: { key: params.meterKey } })
-  const limit = meter?.defaultLimit ?? null
+
+  // Determine effective limit: plan version limit overrides meter default
+  let limit = meter?.defaultLimit ?? null
+  const sub = await db.subscription.findUnique({
+    where: { organizationId: params.organizationId },
+    include: { planVersion: true },
+  })
+  if (sub?.planVersion) {
+    const versionData = parseVersionFeatures(sub.planVersion)
+    const planLimit = versionData.limits?.find(l => l.key === params.meterKey)
+    if (planLimit) limit = planLimit.value
+  }
 
   // Create usage record
   await db.usageRecord.create({
@@ -126,13 +137,27 @@ export async function getUsageSnapshot(organizationId: string): Promise<UsageSna
   const meters = await listMeters()
   const snapshots: UsageSnapshot[] = []
 
+  // Get plan-based limits for this org
+  const sub = await db.subscription.findUnique({
+    where: { organizationId },
+    include: { planVersion: true },
+  })
+  const planLimits: Record<string, number> = {}
+  if (sub?.planVersion) {
+    const versionData = parseVersionFeatures(sub.planVersion)
+    for (const l of versionData.limits) {
+      planLimits[l.key] = l.value
+    }
+  }
+
   for (const meter of meters) {
     const quantity = await getCurrentUsage(organizationId, meter.key)
+    const effectiveLimit = planLimits[meter.key] ?? meter.defaultLimit
     snapshots.push({
       meterKey: meter.key,
       quantity: Math.round(quantity),
-      limit: meter.defaultLimit,
-      percentage: meter.defaultLimit ? Math.round((quantity / meter.defaultLimit) * 100) : 0,
+      limit: effectiveLimit,
+      percentage: effectiveLimit ? Math.round((quantity / effectiveLimit) * 100) : 0,
       overageBehavior: meter.overageBehavior as OverageBehavior,
     })
   }
@@ -148,15 +173,23 @@ export async function recordAiUsage(organizationId: string, data: {
   provider: string
   agentSlug?: string
   toolCalls?: number
+  /**
+   * Caller-provided idempotency key (e.g. message ID).
+   * Required to prevent double-counting on retries.
+   * If omitted, a random key is generated (no dedup guarantee).
+   */
+  idempotencyKey?: string
 }) {
   const results = []
+  // Use caller-provided base key; fall back to random UUID (no dedup guarantee)
+  const base = data.idempotencyKey ?? randomUUID()
 
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.requests', quantity: 1, source: 'ai-chat', idempotencyKey: `ai.req:${organizationId}:${randomUUID()}` }))
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.input_tokens', quantity: data.inputTokens, source: 'ai-chat', idempotencyKey: `ai.in:${organizationId}:${randomUUID()}` }))
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.output_tokens', quantity: data.outputTokens, source: 'ai-chat', idempotencyKey: `ai.out:${organizationId}:${randomUUID()}` }))
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.total_tokens', quantity: data.inputTokens + data.outputTokens, source: 'ai-chat', idempotencyKey: `ai.total:${organizationId}:${randomUUID()}` }))
+  results.push(await recordUsage({ organizationId, meterKey: 'ai.requests', quantity: 1, source: 'ai-chat', idempotencyKey: `${base}:req` }))
+  results.push(await recordUsage({ organizationId, meterKey: 'ai.input_tokens', quantity: data.inputTokens, source: 'ai-chat', idempotencyKey: `${base}:in` }))
+  results.push(await recordUsage({ organizationId, meterKey: 'ai.output_tokens', quantity: data.outputTokens, source: 'ai-chat', idempotencyKey: `${base}:out` }))
+  results.push(await recordUsage({ organizationId, meterKey: 'ai.total_tokens', quantity: data.inputTokens + data.outputTokens, source: 'ai-chat', idempotencyKey: `${base}:total` }))
   if (data.toolCalls && data.toolCalls > 0) {
-    results.push(await recordUsage({ organizationId, meterKey: 'ai.tool_calls', quantity: data.toolCalls, source: 'ai-chat', idempotencyKey: `ai.tc:${organizationId}:${randomUUID()}` }))
+    results.push(await recordUsage({ organizationId, meterKey: 'ai.tool_calls', quantity: data.toolCalls, source: 'ai-chat', idempotencyKey: `${base}:tc` }))
   }
 
   return results
