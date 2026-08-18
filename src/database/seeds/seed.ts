@@ -14,6 +14,14 @@ async function main() {
   await prisma.membershipRole.deleteMany()
   await prisma.rolePermission.deleteMany()
   await prisma.teamMember.deleteMany()
+  // Billing tables (depend on Organization, Plan, Subscription)
+  await prisma.usageRecord.deleteMany()
+  await prisma.invoice.deleteMany()
+  await prisma.subscription.deleteMany()
+  await prisma.planVersion.deleteMany()
+  await prisma.plan.deleteMany()
+  await prisma.feature.deleteMany()
+  await prisma.usageMeter.deleteMany()
   // Integration tables (depend on Organization)
   await prisma.webhookDelivery.deleteMany()
   await prisma.webhook.deleteMany()
@@ -128,6 +136,16 @@ async function main() {
     prisma.permission.create({ data: { key: 'integration.webhooks.manage', description: 'Create, update, delete, test webhooks' } }),
     prisma.permission.create({ data: { key: 'integration.oauth.view', description: 'View OAuth connections' } }),
     prisma.permission.create({ data: { key: 'integration.oauth.manage', description: 'Connect, disconnect, refresh OAuth' } }),
+    // Billing permissions
+    prisma.permission.create({ data: { key: 'billing.plans.view', description: 'View available plans and features' } }),
+    prisma.permission.create({ data: { key: 'billing.plans.manage', description: 'Create and manage plans (admin)' } }),
+    prisma.permission.create({ data: { key: 'billing.subscriptions.view', description: 'View subscription status and history' } }),
+    prisma.permission.create({ data: { key: 'billing.subscriptions.manage', description: 'Upgrade, downgrade, cancel subscriptions' } }),
+    prisma.permission.create({ data: { key: 'billing.entitlements.view', description: 'View feature entitlements' } }),
+    prisma.permission.create({ data: { key: 'billing.usage.view', description: 'View usage meters and records' } }),
+    prisma.permission.create({ data: { key: 'billing.invoices.view', description: 'View invoices' } }),
+    prisma.permission.create({ data: { key: 'billing.invoices.manage', description: 'Generate and manage invoices (admin)' } }),
+    prisma.permission.create({ data: { key: 'billing.metrics.admin', description: 'View billing metrics (MRR, churn)' } }),
   ])
   console.log(`  ✓ Created ${permissions.length} permissions`)
 
@@ -506,6 +524,153 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   })
   console.log('  ✓ Created 1 sample OAuth connection')
 
+  // ══════════════════════════════════════════════════════════════
+  // BILLING (Phase 7 — Billing and Entitlements)
+  // ══════════════════════════════════════════════════════════════
+
+  // ── Features ──
+  const billingFeatures = await Promise.all([
+    prisma.feature.create({ data: { key: 'domain.poultry', name: 'Poultry OS Domain', description: 'Full Poultry OS access', category: 'domain' } }),
+    prisma.feature.create({ data: { key: 'domain.restaurant', name: 'Restaurant OS Domain', description: 'Full Restaurant OS access', category: 'domain' } }),
+    prisma.feature.create({ data: { key: 'module.flock-management', name: 'Flock Management', description: 'Track flocks, batches, mortality', category: 'module' } }),
+    prisma.feature.create({ data: { key: 'module.feed-management', name: 'Feed Management', description: 'Feed formulations, consumption tracking', category: 'module' } }),
+    prisma.feature.create({ data: { key: 'module.menu-management', name: 'Menu Management', description: 'Menu items, categories, pricing', category: 'module' } }),
+    prisma.feature.create({ data: { key: 'ai.assistant', name: 'AI Assistant', description: 'AI chat capability', category: 'ai' } }),
+    prisma.feature.create({ data: { key: 'api.access', name: 'API Access', description: 'REST API access', category: 'platform' } }),
+    prisma.feature.create({ data: { key: 'automation.workflows', name: 'Automation', description: 'Workflow engine access', category: 'platform' } }),
+    prisma.feature.create({ data: { key: 'advanced.analytics', name: 'Advanced Analytics', description: 'Advanced reporting and analytics', category: 'addon' } }),
+    prisma.feature.create({ data: { key: 'webhooks.custom', name: 'Custom Webhooks', description: 'Create custom webhooks', category: 'integration' } }),
+  ])
+  console.log(`  ✓ Created ${billingFeatures.length} features`)
+
+  // ── System Plans ──
+  const starterPlan = await prisma.plan.create({
+    data: { name: 'Starter', slug: 'starter', description: 'For small farms getting started', billingCycle: 'monthly', basePrice: 29, currency: 'USD', status: 'active', isSystem: true },
+  })
+  const growthPlan = await prisma.plan.create({
+    data: { name: 'Growth', slug: 'growth', description: 'For scaling operations', billingCycle: 'monthly', basePrice: 99, currency: 'USD', status: 'active', isSystem: true },
+  })
+  const enterprisePlan = await prisma.plan.create({
+    data: { name: 'Enterprise', slug: 'enterprise', description: 'For large multi-site operations', billingCycle: 'monthly', basePrice: 299, currency: 'USD', status: 'active', isSystem: true },
+  })
+  console.log('  ✓ Created 3 system plans')
+
+  // ── Plan Versions ──
+  const planVersions = await Promise.all([
+    prisma.planVersion.create({
+      data: { planId: starterPlan.id, version: 1, name: 'Starter v1',
+        features: JSON.stringify([
+          { key: 'domain.poultry', name: 'Poultry OS', category: 'domain' },
+          { key: 'module.flock-management', name: 'Flock Management', category: 'module' },
+          { key: 'ai.assistant', name: 'AI Assistant', category: 'ai' },
+        ]),
+        limits: JSON.stringify([
+          { key: 'members.active', value: 3, unit: 'member' },
+          { key: 'api.requests', value: 5000, unit: 'request' },
+          { key: 'ai.total_tokens', value: 100000, unit: 'token' },
+        ]),
+        seatAllowance: 3, aiTokenAllowance: 100000,
+      },
+    }),
+    prisma.planVersion.create({
+      data: { planId: growthPlan.id, version: 1, name: 'Growth v1',
+        features: JSON.stringify([
+          { key: 'domain.poultry', name: 'Poultry OS', category: 'domain' },
+          { key: 'domain.restaurant', name: 'Restaurant OS', category: 'domain' },
+          { key: 'module.flock-management', name: 'Flock Management', category: 'module' },
+          { key: 'module.feed-management', name: 'Feed Management', category: 'module' },
+          { key: 'module.menu-management', name: 'Menu Management', category: 'module' },
+          { key: 'ai.assistant', name: 'AI Assistant', category: 'ai' },
+          { key: 'api.access', name: 'API Access', category: 'platform' },
+          { key: 'automation.workflows', name: 'Automation', category: 'platform' },
+        ]),
+        limits: JSON.stringify([
+          { key: 'members.active', value: 10, unit: 'member' },
+          { key: 'api.requests', value: 50000, unit: 'request' },
+          { key: 'ai.total_tokens', value: 1000000, unit: 'token' },
+        ]),
+        seatAllowance: 10, aiTokenAllowance: 1000000,
+      },
+    }),
+    prisma.planVersion.create({
+      data: { planId: enterprisePlan.id, version: 1, name: 'Enterprise v1',
+        features: JSON.stringify([
+          { key: 'domain.poultry', name: 'Poultry OS', category: 'domain' },
+          { key: 'domain.restaurant', name: 'Restaurant OS', category: 'domain' },
+          { key: 'module.flock-management', name: 'Flock Management', category: 'module' },
+          { key: 'module.feed-management', name: 'Feed Management', category: 'module' },
+          { key: 'module.menu-management', name: 'Menu Management', category: 'module' },
+          { key: 'ai.assistant', name: 'AI Assistant', category: 'ai' },
+          { key: 'api.access', name: 'API Access', category: 'platform' },
+          { key: 'automation.workflows', name: 'Automation', category: 'platform' },
+          { key: 'advanced.analytics', name: 'Advanced Analytics', category: 'addon' },
+          { key: 'webhooks.custom', name: 'Custom Webhooks', category: 'integration' },
+        ]),
+        limits: JSON.stringify([
+          { key: 'members.active', value: 50, unit: 'member' },
+          { key: 'api.requests', value: 500000, unit: 'request' },
+          { key: 'ai.total_tokens', value: 10000000, unit: 'token' },
+        ]),
+        seatAllowance: 50, aiTokenAllowance: 10000000,
+      },
+    }),
+  ])
+  console.log(`  ✓ Created ${planVersions.length} plan versions`)
+
+  // ── Usage Meters ──
+  const usageMeters = await Promise.all([
+    prisma.usageMeter.create({ data: { key: 'api.requests', name: 'API Requests', unit: 'request', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'hard_limit', defaultLimit: 10000 } }),
+    prisma.usageMeter.create({ data: { key: 'storage.bytes', name: 'Storage', unit: 'byte', meterType: 'gauge', aggregation: 'sum', resetCycle: 'never', overageBehavior: 'soft_limit', defaultLimit: 1000000000 } }),
+    prisma.usageMeter.create({ data: { key: 'members.active', name: 'Active Members', unit: 'member', meterType: 'counter', aggregation: 'sum', resetCycle: 'never', overageBehavior: 'hard_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'ai.requests', name: 'AI Requests', unit: 'count', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'soft_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'ai.input_tokens', name: 'AI Input Tokens', unit: 'token', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'soft_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'ai.output_tokens', name: 'AI Output Tokens', unit: 'token', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'soft_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'ai.total_tokens', name: 'AI Total Tokens', unit: 'token', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'soft_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'ai.tool_calls', name: 'AI Tool Calls', unit: 'count', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'soft_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'ai.agent_runs', name: 'AI Agent Runs', unit: 'count', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'soft_limit' } }),
+    prisma.usageMeter.create({ data: { key: 'messages.sent', name: 'Messages Sent', unit: 'message', meterType: 'counter', aggregation: 'sum', resetCycle: 'monthly', overageBehavior: 'hard_limit', defaultLimit: 1000 } }),
+  ])
+  console.log(`  ✓ Created ${usageMeters.length} usage meters`)
+
+  // ── Subscription for Poultry Farm Co (Growth plan, active) ──
+  const now = new Date()
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+  const subscription = await prisma.subscription.create({
+    data: {
+      organizationId: orgs[0].id,
+      planId: growthPlan.id,
+      planVersionId: planVersions[1].id, // Growth v1
+      state: 'active',
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      seatCount: 4,
+    },
+  })
+  console.log('  ✓ Created 1 active subscription (Growth)')
+
+  // ── Sample Usage Records ──
+  await Promise.all([
+    prisma.usageRecord.create({ data: { organizationId: orgs[0].id, meterKey: 'api.requests', quantity: 1250, unit: 'request', source: 'api', idempotencyKey: 'seed-api-req-1', occurredAt: new Date() } }),
+    prisma.usageRecord.create({ data: { organizationId: orgs[0].id, meterKey: 'ai.total_tokens', quantity: 45000, unit: 'token', source: 'ai-chat', idempotencyKey: 'seed-ai-tok-1', occurredAt: new Date() } }),
+    prisma.usageRecord.create({ data: { organizationId: orgs[0].id, meterKey: 'ai.requests', quantity: 23, unit: 'count', source: 'ai-chat', idempotencyKey: 'seed-ai-req-1', occurredAt: new Date() } }),
+  ])
+  console.log('  ✓ Created 3 sample usage records')
+
+  // ── Sample Invoice ──
+  const invoiceLines = JSON.stringify([
+    { type: 'base_plan', description: 'Growth (monthly)', unitPrice: 99, amount: 99 },
+    { type: 'seats', description: 'Extra seats (1 x 9.90)', quantity: 1, unitPrice: 9.90, amount: 9.90 },
+  ])
+  await prisma.invoice.create({
+    data: {
+      organizationId: orgs[0].id, subscriptionId: subscription.id, invoiceNumber: 'INV-0001',
+      status: 'paid', periodStart: new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()), periodEnd: now,
+      currency: 'USD', subtotal: 108.90, discount: 0, tax: 0, total: 108.90,
+      lineItems: invoiceLines, issuedAt: new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()), dueAt: new Date(now.getFullYear(), now.getMonth() - 1, now.getDate() + 30), paidAt: now,
+    },
+  })
+  console.log('  ✓ Created 1 sample invoice')
+
   console.log('\n✅ Seed complete! Summary:')
   console.log(`   Organizations: ${orgs.length}`)
   console.log(`   Profiles: ${profiles.length}`)
@@ -525,6 +690,13 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   console.log(`   API Keys: 1`)
   console.log(`   Webhooks: 1`)
   console.log(`   OAuth Connections: 1`)
+  console.log(`   Plans: 3`)
+  console.log(`   Plan Versions: ${planVersions.length}`)
+  console.log(`   Features: ${billingFeatures.length}`)
+  console.log(`   Usage Meters: ${usageMeters.length}`)
+  console.log(`   Subscriptions: 1`)
+  console.log(`   Usage Records: 3`)
+  console.log(`   Invoices: 1`)
 }
 
 main()

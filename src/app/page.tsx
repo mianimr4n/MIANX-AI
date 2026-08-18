@@ -7,6 +7,7 @@ import {
   Globe, CheckCircle2, Circle, Clock, ArrowRight, Server,
   FolderTree, Table2, Cpu, Layers, Users, Building2, FileText,
   ShieldCheck, Loader2, XCircle, Play, RefreshCw, Package, Puzzle, Bot, MessageSquare, Zap,
+  CreditCard, Receipt, DollarSign, BarChart3,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,8 @@ import {
   DOMAIN_TABLES,
   AI_TABLES,
   AUTOMATION_TABLES,
+  INTEGRATION_TABLES,
+  BILLING_TABLES,
   ARCHITECTURE_LAYERS,
   APP_VERSION,
 } from '@/lib/constants'
@@ -85,7 +88,9 @@ export default function HomePage() {
   const [autoLoading, setAutoLoading] = useState(false)
   const [integrationResult, setIntegrationResult] = useState<TestResult | null>(null)
   const [integrationLoading, setIntegrationLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'automation' | 'integration' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
+  const [billingResult, setBillingResult] = useState<TestResult | null>(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'automation' | 'integration' | 'billing' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
 
   const fetchData = useCallback(() => {
     fetch('/api/health').then(r => r.json()).then(setHealth).catch(() => {})
@@ -102,12 +107,13 @@ export default function HomePage() {
   const runAi = async () => { setAiLoading(true); setAiResult(null); try { const r = await fetch('/api/test/ai-core', { method: 'POST' }); setAiResult((await r.json()).data) } catch { } finally { setAiLoading(false) } }
   const runAuto = async () => { setAutoLoading(true); setAutoResult(null); try { const r = await fetch('/api/test/automation', { method: 'POST' }); setAutoResult((await r.json()).data) } catch { } finally { setAutoLoading(false) } }
   const runIntegration = async () => { setIntegrationLoading(true); setIntegrationResult(null); try { const r = await fetch('/api/test/integration', { method: 'POST' }); setIntegrationResult((await r.json()).data) } catch { } finally { setIntegrationLoading(false) } }
+  const runBilling = async () => { setBillingLoading(true); setBillingResult(null); try { const r = await fetch('/api/test/billing', { method: 'POST' }); setBillingResult((await r.json()).data) } catch { } finally { setBillingLoading(false) } }
 
   const completedPhases = PHASES.filter(p => p.status === 'completed').length
   const inProgressPhases = PHASES.filter(p => p.status === 'in-progress').length
   const progressPct = Math.round(((completedPhases + inProgressPhases * 0.5) / PHASES.length) * 100)
   const totalModules = domains?.reduce((s, d) => s + d._count.modules, 0) ?? 0
-  const totalApiRoutes = 71 // Phases 0-6 combined
+  const totalApiRoutes = 78 // Phases 0-7 combined
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -144,7 +150,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
-                    Phase 6: API & Integration
+                    Phase 7: Billing & Entitlements
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Multi-Tenant, Multi-Domain, AI-Native Business Operating System
@@ -176,7 +182,7 @@ export default function HomePage() {
 
         {/* Tab Navigation */}
         <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit overflow-x-auto">
-          {(['overview', 'automation', 'integration', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
+          {(['overview', 'automation', 'integration', 'billing', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {tab}
             </button>
@@ -187,6 +193,7 @@ export default function HomePage() {
           {activeTab === 'overview' && <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><OverviewTab health={health} orgs={orgs} domains={domains} /></motion.div>}
           {activeTab === 'automation' && <motion.div key="automation" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TestRunnerTab title="Event & Automation" endpoint="/api/test/automation" result={autoResult} loading={autoLoading} onRunTest={runAuto} /></motion.div>}
           {activeTab === 'integration' && <motion.div key="integration" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><IntegrationTab intResult={integrationResult} intLoading={integrationLoading} onRunTest={runIntegration} /></motion.div>}
+          {activeTab === 'billing' && <motion.div key="billing" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><BillingTab billingResult={billingResult} billingLoading={billingLoading} onRunTest={runBilling} /></motion.div>}
           {activeTab === 'domains' && <motion.div key="domains" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><DomainsTab domains={domains} domainResult={domainResult} domainLoading={domainLoading} onRunTest={runDomain} /></motion.div>}
           {activeTab === 'authorization' && <motion.div key="authorization" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AuthTab authResult={authResult} authLoading={authLoading} onRunTest={runAuth} /></motion.div>}
           {activeTab === 'tenancy' && <motion.div key="tenancy" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TenancyTab isoResult={isoResult} isoLoading={isoLoading} onRunTest={runIso} /></motion.div>}
@@ -198,7 +205,7 @@ export default function HomePage() {
       <footer className="mt-auto border-t border-border/50 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-muted-foreground">
           <span>Mianx.ai v{APP_VERSION} — Build the Core once. Build unlimited Business OS products on top.</span>
-          <span>Phase 6 / 11</span>
+          <span>Phase 7 / 11</span>
         </div>
       </footer>
     </div>
@@ -632,7 +639,7 @@ function DatabaseTab() {
   return (
     <div className="space-y-4">
       <Card className="border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Database className="w-4 h-4" />Core Tables</CardTitle><CardDescription>17 tenant-isolated tables with organization_id foreign keys</CardDescription></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Database className="w-4 h-4" />Core Tables</CardTitle><CardDescription>13 core tables with organization_id foreign keys</CardDescription></CardHeader>
         <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">{CORE_TABLES.map(table => (<div key={table} className="flex items-center gap-2 p-2.5 rounded-md border border-border/50 hover:bg-muted/30 transition-colors"><Table2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" /><code className="text-xs font-mono">{table}</code></div>))}</div></CardContent>
       </Card>
       <Card className="border-border/50">
@@ -644,6 +651,10 @@ function DatabaseTab() {
         <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{AI_TABLES.map(table => (<div key={table} className="flex items-center gap-2 p-2.5 rounded-md border border-border/50 hover:bg-muted/30 transition-colors"><Brain className="w-3.5 h-3.5 text-purple-500 shrink-0" /><code className="text-xs font-mono">{table}</code></div>))}</div></CardContent>
       </Card>
       <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><CreditCard className="w-4 h-4" />Billing & Entitlement Tables</CardTitle><CardDescription>7 tables for plans, subscriptions, usage metering, invoices</CardDescription></CardHeader>
+        <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{BILLING_TABLES.map(table => (<div key={table} className="flex items-center gap-2 p-2.5 rounded-md border border-border/50 hover:bg-muted/30 transition-colors"><CreditCard className="w-3.5 h-3.5 text-amber-500 shrink-0" /><code className="text-xs font-mono">{table}</code></div>))}</div></CardContent>
+      </Card>
+      <Card className="border-border/50">
         <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><FolderTree className="w-4 h-4" />Project Structure</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -653,12 +664,13 @@ function DatabaseTab() {
               { label: 'src/core/domain/', desc: 'Manifest types, validator, domain registry' },
               { label: 'src/core/auth/', desc: 'Authentication, session management' },
               { label: 'src/ai/', desc: 'Providers, Agents, Tools, Memory, Knowledge' },
-              { label: 'src/automation/', desc: 'Events, Workflows, Jobs, Outbox' },
-              { label: 'src/integration/', desc: 'API Keys, Webhooks, OAuth, External Client' },
+              { label: 'src/core/automation/', desc: 'Events, Workflows, Jobs, Approvals' },
+              { label: 'src/core/integration/', desc: 'API Keys, Webhooks, OAuth, External Client' },
+              { label: 'src/core/billing/', desc: 'Plans, Subscriptions, Entitlements, Usage, Invoices' },
               { label: 'src/domains/', desc: 'Poultry, Restaurant, Retail, Manufacturing' },
               { label: 'src/database/', desc: 'Seeds, Migrations' },
               { label: 'src/lib/', desc: 'Supabase, Env, Types, Constants' },
-              { label: 'src/app/api/', desc: 'Health, Orgs, Domains, Auth, Audit, Tests' },
+              { label: 'src/app/api/', desc: 'Health, Orgs, Billing, Domains, Auth, Tests' },
             ].map(item => (<div key={item.label} className="p-3 rounded-lg border border-border/50 space-y-1"><code className="text-xs font-mono font-semibold">{item.label}</code><p className="text-[11px] text-muted-foreground">{item.desc}</p></div>))}
           </div>
         </CardContent>
@@ -695,6 +707,77 @@ function ArchitectureTab() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ── Billing Tab ──
+function BillingTab({ billingResult, billingLoading, onRunTest }: { billingResult: TestResult | null; billingLoading: boolean; onRunTest: () => void }) {
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><CreditCard className="w-4 h-4" />Billing & Entitlement Engine</CardTitle><CardDescription>Plans, subscriptions, usage metering, AI budgets, invoices, payment providers</CardDescription></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">6</p>
+              <p className="text-[11px] text-muted-foreground">Core Modules</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">7</p>
+              <p className="text-[11px] text-muted-foreground">API Routes</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">7</p>
+              <p className="text-[11px] text-muted-foreground">DB Tables</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">33</p>
+              <p className="text-[11px] text-muted-foreground">Test Cases</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">API Endpoints</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-1 text-xs font-mono">
+            {[
+              { method: 'GET', path: '/api/billing/plans', desc: 'List plans' },
+              { method: 'POST', path: '/api/billing/plans', desc: 'Create plan' },
+              { method: 'GET', path: '/api/billing/subscriptions', desc: 'List subscriptions' },
+              { method: 'POST', path: '/api/billing/subscriptions', desc: 'Create/upgrade/cancel' },
+              { method: 'GET', path: '/api/billing/entitlements', desc: 'Check entitlements' },
+              { method: 'GET', path: '/api/billing/usage', desc: 'Usage snapshot' },
+              { method: 'POST', path: '/api/billing/usage', desc: 'Record usage' },
+              { method: 'GET', path: '/api/billing/invoices', desc: 'List invoices' },
+              { method: 'POST', path: '/api/billing/invoices', desc: 'Generate/issue/pay' },
+              { method: 'GET', path: '/api/billing/metrics', desc: 'MRR, churn, ARR' },
+            ].map((ep, i) => (
+              <div key={i} className="flex items-center gap-2 py-0.5">
+                <Badge variant={ep.method === 'GET' ? 'secondary' : 'default'} className="text-[10px] w-12 justify-center font-mono">{ep.method}</Badge>
+                <code className="text-xs text-muted-foreground">{ep.path}</code>
+                <span className="text-[11px] text-muted-foreground ml-auto">{ep.desc}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">Subscription Lifecycle</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {['trialing', 'active', 'past_due', 'grace_period', 'paused', 'cancelled', 'expired', 'suspended'].map(state => (
+              <Badge key={state} variant="outline" className="text-[10px] font-mono">{state}</Badge>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">8-state machine with validated transitions, payment failure flow, and downgrade safety checks</p>
+        </CardContent>
+      </Card>
+
+      <TestRunnerTab title="Billing Tests" endpoint="/api/test/billing" result={billingResult} loading={billingLoading} onRunTest={onRunTest} />
     </div>
   )
 }

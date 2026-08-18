@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 export const APP_NAME = 'Mianx.ai'
-export const APP_VERSION = '0.5.0'
+export const APP_VERSION = '0.6.0'
 export const APP_DESCRIPTION = 'Multi-Tenant, Multi-Domain, AI-Native Business Operating System'
 
 export const PHASES = [
@@ -14,7 +14,7 @@ export const PHASES = [
   { id: 4, name: 'AI Core Foundation', duration: 'Week 8-12', status: 'completed' as const, focus: 'AI router, agents, tools' },
   { id: 5, name: 'Event and Automation', duration: 'Week 12-14', status: 'completed' as const, focus: 'Events, workflows, jobs' },
   { id: 6, name: 'API and Integration', duration: 'Week 14-16', status: 'completed' as const, focus: 'APIs, webhooks, OAuth' },
-  { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'pending' as const, focus: 'Plans, subscriptions, usage' },
+  { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'completed' as const, focus: 'Plans, subscriptions, usage' },
   { id: 8, name: 'Frontend Platform', duration: 'Week 18-22', status: 'pending' as const, focus: 'App shell, design system' },
   { id: 9, name: 'Observability and Ops', duration: 'Week 22-24', status: 'pending' as const, focus: 'Logging, monitoring, alerts' },
   { id: 10, name: 'Poultry OS Domain', duration: 'Week 24-30', status: 'pending' as const, focus: 'Industry modules, agents' },
@@ -52,6 +52,11 @@ export const AUTOMATION_TABLES = [
 
 export const INTEGRATION_TABLES = [
   'api_keys', 'webhooks', 'webhook_deliveries', 'oauth_connections',
+] as const
+
+export const BILLING_TABLES = [
+  'plans', 'plan_versions', 'features', 'subscriptions',
+  'usage_meters', 'usage_records', 'invoices',
 ] as const
 
 export const SYSTEM_ROLES = ['owner', 'admin', 'member', 'viewer'] as const

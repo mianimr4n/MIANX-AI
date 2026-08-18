@@ -67,6 +67,10 @@ model Organization {
   webhooks       Webhook[]
   webhookDeliveries WebhookDelivery[]
   oauthConnections OAuthConnection[]
+  plans          Plan[]
+  subscriptions  Subscription[]
+  usageRecords   UsageRecord[]
+  invoices       Invoice[]
 }
 
 model Profile {
@@ -677,4 +681,221 @@ model OAuthConnection {
 
   @@unique([organizationId, provider])
   @@index([organizationId, status])
+}
+
+// ── BILLING & ENTITLEMENT TABLES ──────────────────────────────
+
+enum PlanBillingCycle {
+  monthly
+  yearly
+  one_time
+}
+
+enum PlanStatus {
+  draft
+  active
+  archived
+  deprecated
+}
+
+enum SubscriptionState {
+  trialing
+  active
+  past_due
+  grace_period
+  paused
+  cancelled
+  expired
+  suspended
+}
+
+enum EntitlementStatus {
+  enabled
+  disabled
+  limited
+  trial
+  expired
+  suspended
+}
+
+enum OverageBehavior {
+  hard_limit
+  soft_limit
+  auto_overage
+  prepaid_credits
+}
+
+enum UsageMeterType {
+  counter
+  gauge
+  unique
+}
+
+enum InvoiceStatus {
+  draft
+  issued
+  paid
+  failed
+  voided
+}
+
+enum InvoiceLineType {
+  base_plan
+  domain
+  module
+  seats
+  usage
+  ai_usage
+  add_on
+  credit
+  discount
+  tax
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+  partially_refunded
+}
+
+model Plan {
+  id            String           @id @default(cuid())
+  name          String
+  slug          String
+  description   String?
+  billingCycle  PlanBillingCycle @default(monthly)
+  basePrice     Float            @default(0)
+  currency      String           @default("USD")
+  status        PlanStatus       @default(draft)
+  isSystem      Boolean          @default(false)
+  metadata      String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  organization    Organization?   @relation(fields: [organizationId], references: [id])
+  organizationId  String?
+  versions        PlanVersion[]
+  subscriptions    Subscription[]
+
+  @@unique([organizationId, slug])
+  @@index([status])
+}
+
+model PlanVersion {
+  id            String   @id @default(cuid())
+  planId        String
+  version       Int
+  name          String?
+  description   String?
+  features      String
+  limits        String?
+  seatAllowance Int      @default(1)
+  aiTokenAllowance Int  @default(0)
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+
+  plan             Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions    Subscription[]
+
+  @@unique([planId, version])
+}
+
+model Feature {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  category    String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+}
+
+model Subscription {
+  id               String            @id @default(cuid())
+  organizationId   String
+  planId           String?
+  planVersionId    String
+  state            SubscriptionState @default(trialing)
+  trialEndsAt      DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  seatCount        Int               @default(1)
+  canceledAt       DateTime?
+  expiresAt        DateTime?
+  pausedAt         DateTime?
+  metadata         String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  plan         Plan?        @relation(fields: [planId], references: [id])
+  planVersion  PlanVersion  @relation(fields: [planVersionId], references: [id])
+  invoices     Invoice[]
+
+  @@unique([organizationId])
+  @@index([state])
+  @@index([currentPeriodEnd])
+}
+
+model UsageMeter {
+  id               String           @id @default(cuid())
+  key              String           @unique
+  name             String
+  description      String?
+  unit             String           @default("count")
+  meterType        UsageMeterType   @default(counter)
+  aggregation       String           @default("sum")
+  resetCycle       String           @default("monthly")
+  overageBehavior  OverageBehavior  @default(hard_limit)
+  defaultLimit     Int?
+  metadata         String?
+  createdAt        DateTime         @default(now())
+}
+
+model UsageRecord {
+  id              String   @id @default(cuid())
+  organizationId  String
+  meterKey        String
+  quantity        Float
+  unit            String   @default("count")
+  source          String?
+  idempotencyKey  String   @unique
+  metadata        String?
+  occurredAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, meterKey, occurredAt])
+  @@index([idempotencyKey])
+}
+
+model Invoice {
+  id               String        @id @default(cuid())
+  organizationId   String
+  subscriptionId   String
+  invoiceNumber    String
+  status           InvoiceStatus @default(draft)
+  periodStart      DateTime
+  periodEnd        DateTime
+  currency         String        @default("USD")
+  subtotal         Float         @default(0)
+  discount         Float         @default(0)
+  tax              Float         @default(0)
+  total            Float         @default(0)
+  lineItems        String
+  issuedAt         DateTime?
+  dueAt            DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([subscriptionId])
+  @@index([status])
 }
