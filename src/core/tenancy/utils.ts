@@ -14,12 +14,12 @@ export function slugify(text: string): string {
 }
 
 /** Generate a standard API response envelope */
-export function apiEnvelope<T>(data: T, meta?: Record<string, unknown>) {
+export function apiEnvelope<T>(data: T, meta?: string | Record<string, unknown>) {
   return {
     data,
     meta: {
       timestamp: new Date().toISOString(),
-      ...meta,
+      ...(typeof meta === 'string' ? { message: meta } : meta ?? {}),
     },
   }
 }

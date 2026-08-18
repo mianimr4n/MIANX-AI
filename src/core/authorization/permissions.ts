@@ -32,10 +32,15 @@ export function hasPermission(
     // Exact match
     if (p === permissionKey) return true
 
-    // Wildcard domain: 'organization.*'
-    if (parsed.domain === '*' && parsed.resource === '*') return true
+    // Global wildcard: '*.*' (domain and resource both wildcard)
+    if (parsed.domain === '*' && parsed.resource === '*' && parsed.action === '*') return true
+    // Wildcard domain + specific action: '*.view' matches 'team.view', 'org.view'
+    if (parsed.domain === '*' && parsed.resource === '*' && parsed.action === required.action) return true
+    // Wildcard domain + specific resource + specific action: '*.team.view' matches 'team.view'
     if (parsed.domain === '*' && parsed.resource === required.resource && parsed.action === required.action) return true
+    // Specific domain + wildcard resource + specific action: 'organization.*.view'
     if (parsed.domain === required.domain && parsed.resource === '*' && parsed.action === required.action) return true
+    // Specific domain + specific resource + wildcard action: 'organization.team.*'
     if (parsed.domain === required.domain && parsed.resource === required.resource && parsed.action === '*') return true
 
     return false

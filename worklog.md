@@ -22,3 +22,25 @@ Stage Summary:
 - Module registration under domains with dependency tracking
 - Org activation: domain must be active before modules can be enabled
 - Deactivating a domain cascades to deactivate all its modules
+
+---
+Task ID: 1
+Agent: main
+Task: Complete Phase 2 (Domain Engine) — fix remaining gaps
+
+Work Log:
+- Audited full project state: found Domain Engine core, 7 API route groups, seed data, and dashboard were already built
+- Identified 3 missing test endpoints: /api/test/isolation, /api/test/authorization, /api/test/domain-engine
+- Fixed apiEnvelope() to accept string | Record meta parameter (was causing TS errors in all domain routes)
+- Fixed updateDomain() type: status field typed as string instead of DomainStatus enum
+- Created /api/test/isolation: 5 tests (multi-org separation, AsyncLocalStorage propagation, nested context, null outside scope, audit scoping)
+- Created /api/test/authorization: 10 tests (owner wildcard, exact match, *.view wildcard, organization.*, cross-domain isolation, OR/AND logic, role checks, fail-closed, 3-part permissions)
+- Created /api/test/domain-engine: 9 tests (list domains, detail+modules, manifest valid/invalid, org activation, module requires parent, cascade deactivation, slug uniqueness, org query)
+- Fixed critical wildcard permission bug: `parsed.domain==='*' && parsed.resource==='*'` was matching ALL actions (granted team.create from *.view). Added action check to prevent escalation.
+- Verified: build clean, seed runs, all 24/24 tests pass
+
+Stage Summary:
+- Phase 2 (Domain & Module Engine) is now FULLY COMPLETE
+- 3 domains, 11 modules, 3 org-activations, 5 module-activations seeded
+- 25 API routes built, 24 automated tests passing
+- Permission wildcard matching bug fixed (security)

@@ -106,7 +106,7 @@ export async function getDomain(id: string, opts?: { includeModules?: boolean })
 }
 
 /** Update a domain */
-export async function updateDomain(id: string, data: { name?: string; description?: string; version?: string; status?: string; manifest?: DomainManifest }) {
+export async function updateDomain(id: string, data: { name?: string; description?: string; version?: string; status?: 'draft' | 'available' | 'deprecated' | 'archived'; manifest?: DomainManifest }) {
   // If manifest update, validate it
   if (data.manifest) {
     const validation = validateDomainManifest(data.manifest)
@@ -116,13 +116,13 @@ export async function updateDomain(id: string, data: { name?: string; descriptio
     const { manifest: rawManifest, ...rest } = data
     const updated = await db.domain.update({
       where: { id },
-      data: { ...rest, manifest: extractStoredManifest(rawManifest) },
+      data: { ...rest, manifest: extractStoredManifest(rawManifest) } as Record<string, unknown>,
     })
     return { ok: true as const, data: updated }
   }
 
   const { manifest: _, ...updateData } = data
-  const updated = await db.domain.update({ where: { id }, data: updateData })
+  const updated = await db.domain.update({ where: { id }, data: updateData as Record<string, unknown> })
   return { ok: true as const, data: updated }
 }
 
