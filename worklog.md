@@ -124,3 +124,39 @@ Stage Summary:
 - Clean build confirmed after all 7 fixes
 - Phase 5 is now fully complete and production-ready
 
+---
+Task ID: 6
+Agent: main
+Task: Phase 6 — API and Integration (full build from scratch)
+
+Work Log:
+- Confirmed no Phase 6 code existed (greenfield build)
+- Added 4 Prisma models: ApiKey, Webhook, WebhookDelivery, OAuthConnection with 5 enums
+- Added Organization back-references for all 4 new models
+- Ran prisma db push + generate successfully
+- Created src/core/integration/types.ts — full type definitions for all integration entities
+- Created src/core/integration/api-keys.ts — create, verify (SHA-256 hash), list, revoke. Format: mk_live_<32hex>. Key shown only once.
+- Created src/core/integration/webhooks.ts — CRUD, HMAC-SHA256 signatures (Web Crypto API), event type wildcard matching, delivery system, test ping, delivery history. Initialized via instrumentation.ts event bridge.
+- Created src/core/integration/oauth.ts — provider registry (Google, GitHub, Stripe, Custom), upsert connections, list/revoke/refresh, expiration handling
+- Created src/core/integration/external-client.ts — fetchWithOAuth + fetchWithBearerToken for authenticated external API calls
+- Created src/core/integration/index.ts — barrel export for all 4 modules
+- Updated src/instrumentation.ts — added initWebhookBridge() alongside initEventWorkflowBridge()
+- Created 11 API routes: /api/api-keys (GET, POST, PATCH /:id), /api/webhooks (GET, POST, GET/PATCH/DELETE /:id, POST /:id/test, GET deliveries), /api/integrations (GET, GET providers, DELETE /:provider, POST /provider/refresh)
+- Added 6 integration permissions to seed (apikeys.view/manage, webhooks.view/manage, oauth.view/manage)
+- Added deleteMany for 4 integration tables in seed in correct FK order
+- Added sample seed data: 1 API key, 1 webhook (Slack), 1 OAuth connection (Google)
+- Updated constants: INTEGRATION_TABLES, version 0.5.0, Phase 6 completed
+- Created test/integration/route.ts with 10 tests (key CRUD, verify, revoke, webhook CRUD, signature, providers, OAuth store/list/revoke, tables exist)
+- Updated dashboard: added 'integration' tab, IntegrationTab component (4 stats, 13 API endpoints), TestRunnerTab (generic, reused for automation), green badge
+- Fixed pre-existing AutomationTab (was undefined component, now uses TestRunnerTab)
+- Updated database tab: 13 → 17 tables, added integration/ to directory listing
+- Clean build verified: 60 dynamic API routes, 0 warnings
+
+Stage Summary:
+- Phase 6 built from scratch: 4 core modules, 11 API routes, 4 Prisma models, 6 permissions, 10 tests
+- API Keys: SHA-256 hashed, prefix-only listing, full key returned once on creation
+- Webhooks: HMAC-SHA256 signed, wildcard event matching, async delivery with logging, test ping
+- OAuth: 4 providers, upsert pattern, token refresh framework
+- External Client: OAuth + Bearer token authenticated HTTP calls
+- Dashboard: integration tab with test runner and endpoint listing
+

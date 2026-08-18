@@ -63,6 +63,10 @@ model Organization {
   workflowRuns   WorkflowRun[]
   jobs           Job[]
   approvals      Approval[]
+  apiKeys        ApiKey[]
+  webhooks       Webhook[]
+  webhookDeliveries WebhookDelivery[]
+  oauthConnections OAuthConnection[]
 }
 
 model Profile {
@@ -558,4 +562,119 @@ model Approval {
   organization  Organization  @relation(fields: [organizationId], references: [id])
 
   @@index([decision, createdAt])
+}
+
+// ── INTEGRATION TABLES ─────────────────────────────────────────
+
+enum ApiKeyStatus {
+  active
+  revoked
+  expired
+}
+
+enum WebhookStatus {
+  active
+  disabled
+}
+
+enum WebhookDeliveryStatus {
+  pending
+  success
+  failed
+  retrying
+}
+
+enum OAuthProvider {
+  google
+  github
+  stripe
+  custom
+}
+
+enum OAuthConnectionStatus {
+  active
+  expired
+  revoked
+  error
+}
+
+model ApiKey {
+  id              String       @id @default(cuid())
+  organizationId  String
+  name            String
+  prefix          String
+  keyHash         String
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  status          ApiKeyStatus @default(active)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  webhooks    Webhook[]
+
+  @@index([organizationId, status])
+  @@unique([organizationId, prefix])
+}
+
+model Webhook {
+  id              String       @id @default(cuid())
+  organizationId  String
+  name            String
+  url             String
+  secret          String
+  eventTypes      String
+  apiKeyId        String?
+  status          WebhookStatus @default(active)
+  lastDeliveryAt  DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  apiKey       ApiKey?        @relation(fields: [apiKeyId], references: [id])
+  deliveries    WebhookDelivery[]
+
+  @@index([organizationId, status])
+}
+
+model WebhookDelivery {
+  id              String                @id @default(cuid())
+  webhookId       String
+  organizationId  String
+  eventId         String?
+  eventType       String
+  payload         String
+  statusCode      Int?
+  response        String?
+  status          WebhookDeliveryStatus @default(pending)
+  attempt         Int                   @default(1)
+  deliveredAt      DateTime?
+  createdAt       DateTime              @default(now())
+
+  webhook      Webhook      @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+
+  @@index([webhookId, status])
+  @@index([organizationId, createdAt])
+}
+
+model OAuthConnection {
+  id                String                @id @default(cuid())
+  organizationId    String
+  provider          OAuthProvider
+  externalAccountId String?
+  externalAccountName String?
+  accessToken       String
+  refreshToken      String?
+  tokenExpiresAt    DateTime?
+  metadata          String?
+  status            OAuthConnectionStatus @default(active)
+  lastUsedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, provider])
+  @@index([organizationId, status])
 }

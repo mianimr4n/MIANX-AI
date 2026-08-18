@@ -14,6 +14,11 @@ async function main() {
   await prisma.membershipRole.deleteMany()
   await prisma.rolePermission.deleteMany()
   await prisma.teamMember.deleteMany()
+  // Integration tables (depend on Organization)
+  await prisma.webhookDelivery.deleteMany()
+  await prisma.webhook.deleteMany()
+  await prisma.apiKey.deleteMany()
+  await prisma.oAuthConnection.deleteMany()
   // Automation tables (depend on Organization)
   await prisma.workflowStepRun.deleteMany()
   await prisma.approval.deleteMany()
@@ -116,6 +121,13 @@ async function main() {
     prisma.permission.create({ data: { key: 'automation.jobs.manage', description: 'Create and manage jobs' } }),
     prisma.permission.create({ data: { key: 'automation.approvals.manage', description: 'View and decide approvals' } }),
     prisma.permission.create({ data: { key: 'automation.approvals.view', description: 'View approval requests' } }),
+    // Integration permissions
+    prisma.permission.create({ data: { key: 'integration.apikeys.view', description: 'View API keys (prefix only)' } }),
+    prisma.permission.create({ data: { key: 'integration.apikeys.manage', description: 'Create, revoke API keys' } }),
+    prisma.permission.create({ data: { key: 'integration.webhooks.view', description: 'View webhooks and delivery logs' } }),
+    prisma.permission.create({ data: { key: 'integration.webhooks.manage', description: 'Create, update, delete, test webhooks' } }),
+    prisma.permission.create({ data: { key: 'integration.oauth.view', description: 'View OAuth connections' } }),
+    prisma.permission.create({ data: { key: 'integration.oauth.manage', description: 'Connect, disconnect, refresh OAuth' } }),
   ])
   console.log(`  ✓ Created ${permissions.length} permissions`)
 
@@ -453,6 +465,47 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   })
   console.log('  ✓ Created 2 sample jobs')
 
+  // ══════════════════════════════════════════════════════════════
+  // API & INTEGRATION (Phase 6 — API and Integration)
+  // ══════════════════════════════════════════════════════════════
+
+  // ── Sample API Key ──
+  const { createHash } = await import('crypto')
+  const testApiKey = 'mk_live_' + 'a'.repeat(32)
+  const testKeyHash = createHash('sha256').update(testApiKey).digest('hex')
+  await prisma.apiKey.create({
+    data: {
+      organizationId: orgs[0].id, name: 'Development Key', prefix: 'aaaaaaaa',
+      keyHash: testKeyHash, status: 'active', expiresAt: new Date(Date.now() + 365 * 86400000),
+    },
+  })
+  console.log('  ✓ Created 1 sample API key')
+
+  // ── Sample Webhook ──
+  await prisma.webhook.create({
+    data: {
+      organizationId: orgs[0].id, name: 'Slack Notifications',
+      url: 'https://hooks.slack.com/services/T00/B00/xxx',
+      secret: 'whsec_' + 'b'.repeat(24),
+      eventTypes: JSON.stringify(['poultry.mortality.recorded', 'poultry.inventory.low', 'workflow.*']),
+      status: 'active',
+    },
+  })
+  console.log('  ✓ Created 1 sample webhook')
+
+  // ── Sample OAuth Connection ──
+  await prisma.oAuthConnection.create({
+    data: {
+      organizationId: orgs[0].id, provider: 'google',
+      externalAccountId: 'ga-12345', externalAccountName: 'Poultry Farm Co',
+      accessToken: 'ya29.a0AfH6SMB...', refreshToken: '1//0dx...',
+      tokenExpiresAt: new Date(Date.now() + 3600000),
+      metadata: JSON.stringify({ scopes: ['readonly'] }),
+      status: 'active',
+    },
+  })
+  console.log('  ✓ Created 1 sample OAuth connection')
+
   console.log('\n✅ Seed complete! Summary:')
   console.log(`   Organizations: ${orgs.length}`)
   console.log(`   Profiles: ${profiles.length}`)
@@ -469,6 +522,9 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   console.log(`   Events: ${sampleEvents.length}`)
   console.log(`   Workflows: ${sampleWorkflows.length}`)
   console.log(`   Jobs: 2`)
+  console.log(`   API Keys: 1`)
+  console.log(`   Webhooks: 1`)
+  console.log(`   OAuth Connections: 1`)
 }
 
 main()

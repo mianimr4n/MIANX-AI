@@ -83,7 +83,9 @@ export default function HomePage() {
   const [aiModels, setAiModels] = useState<{ models: { id: string; provider: string; displayName: string; tier: string; capabilities: { streaming: boolean; toolUse: boolean; vision: boolean } }[]; configuredProviders: { provider: string; modelCount: number }[] } | null>(null)
   const [autoResult, setAutoResult] = useState<TestResult | null>(null)
   const [autoLoading, setAutoLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
+  const [integrationResult, setIntegrationResult] = useState<TestResult | null>(null)
+  const [integrationLoading, setIntegrationLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'automation' | 'integration' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
 
   const fetchData = useCallback(() => {
     fetch('/api/health').then(r => r.json()).then(setHealth).catch(() => {})
@@ -99,12 +101,13 @@ export default function HomePage() {
   const runDomain = async () => { setDomainLoading(true); setDomainResult(null); try { const r = await fetch('/api/test/domain-engine', { method: 'POST' }); setDomainResult((await r.json()).data) } catch { } finally { setDomainLoading(false) } }
   const runAi = async () => { setAiLoading(true); setAiResult(null); try { const r = await fetch('/api/test/ai-core', { method: 'POST' }); setAiResult((await r.json()).data) } catch { } finally { setAiLoading(false) } }
   const runAuto = async () => { setAutoLoading(true); setAutoResult(null); try { const r = await fetch('/api/test/automation', { method: 'POST' }); setAutoResult((await r.json()).data) } catch { } finally { setAutoLoading(false) } }
+  const runIntegration = async () => { setIntegrationLoading(true); setIntegrationResult(null); try { const r = await fetch('/api/test/integration', { method: 'POST' }); setIntegrationResult((await r.json()).data) } catch { } finally { setIntegrationLoading(false) } }
 
   const completedPhases = PHASES.filter(p => p.status === 'completed').length
   const inProgressPhases = PHASES.filter(p => p.status === 'in-progress').length
   const progressPct = Math.round(((completedPhases + inProgressPhases * 0.5) / PHASES.length) * 100)
   const totalModules = domains?.reduce((s, d) => s + d._count.modules, 0) ?? 0
-  const totalApiRoutes = 60 // Phases 0-5 combined
+  const totalApiRoutes = 71 // Phases 0-6 combined
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -141,15 +144,15 @@ export default function HomePage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
-                    Phase 5: Event & Automation
+                    Phase 6: API & Integration
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Multi-Tenant, Multi-Domain, AI-Native Business Operating System
                   </CardDescription>
                 </div>
-                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15">
-                  <Clock className="w-3 h-3 mr-1" />
-                  In Progress
+                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Complete
                 </Badge>
               </div>
             </CardHeader>
@@ -173,7 +176,7 @@ export default function HomePage() {
 
         {/* Tab Navigation */}
         <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit overflow-x-auto">
-          {(['overview', 'automation', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
+          {(['overview', 'automation', 'integration', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {tab}
             </button>
@@ -182,7 +185,8 @@ export default function HomePage() {
 
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><OverviewTab health={health} orgs={orgs} domains={domains} /></motion.div>}
-          {activeTab === 'automation' && <motion.div key="automation" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AutomationTab autoResult={autoResult} autoLoading={autoLoading} onRunTest={runAuto} /></motion.div>}
+          {activeTab === 'automation' && <motion.div key="automation" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TestRunnerTab title="Event & Automation" endpoint="/api/test/automation" result={autoResult} loading={autoLoading} onRunTest={runAuto} /></motion.div>}
+          {activeTab === 'integration' && <motion.div key="integration" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><IntegrationTab intResult={integrationResult} intLoading={integrationLoading} onRunTest={runIntegration} /></motion.div>}
           {activeTab === 'domains' && <motion.div key="domains" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><DomainsTab domains={domains} domainResult={domainResult} domainLoading={domainLoading} onRunTest={runDomain} /></motion.div>}
           {activeTab === 'authorization' && <motion.div key="authorization" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AuthTab authResult={authResult} authLoading={authLoading} onRunTest={runAuth} /></motion.div>}
           {activeTab === 'tenancy' && <motion.div key="tenancy" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TenancyTab isoResult={isoResult} isoLoading={isoLoading} onRunTest={runIso} /></motion.div>}
@@ -194,7 +198,7 @@ export default function HomePage() {
       <footer className="mt-auto border-t border-border/50 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-muted-foreground">
           <span>Mianx.ai v{APP_VERSION} — Build the Core once. Build unlimited Business OS products on top.</span>
-          <span>Phase 4 / 11</span>
+          <span>Phase 6 / 11</span>
         </div>
       </footer>
     </div>
@@ -628,7 +632,7 @@ function DatabaseTab() {
   return (
     <div className="space-y-4">
       <Card className="border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Database className="w-4 h-4" />Core Tables</CardTitle><CardDescription>13 tenant-isolated tables with organization_id foreign keys</CardDescription></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Database className="w-4 h-4" />Core Tables</CardTitle><CardDescription>17 tenant-isolated tables with organization_id foreign keys</CardDescription></CardHeader>
         <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">{CORE_TABLES.map(table => (<div key={table} className="flex items-center gap-2 p-2.5 rounded-md border border-border/50 hover:bg-muted/30 transition-colors"><Table2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" /><code className="text-xs font-mono">{table}</code></div>))}</div></CardContent>
       </Card>
       <Card className="border-border/50">
@@ -650,6 +654,7 @@ function DatabaseTab() {
               { label: 'src/core/auth/', desc: 'Authentication, session management' },
               { label: 'src/ai/', desc: 'Providers, Agents, Tools, Memory, Knowledge' },
               { label: 'src/automation/', desc: 'Events, Workflows, Jobs, Outbox' },
+              { label: 'src/integration/', desc: 'API Keys, Webhooks, OAuth, External Client' },
               { label: 'src/domains/', desc: 'Poultry, Restaurant, Retail, Manufacturing' },
               { label: 'src/database/', desc: 'Seeds, Migrations' },
               { label: 'src/lib/', desc: 'Supabase, Env, Types, Constants' },
@@ -690,6 +695,108 @@ function ArchitectureTab() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ── Generic Test Runner Tab (reused for automation & integration) ──
+function TestRunnerTab({ title, endpoint, result, loading, onRunTest }: { title: string; endpoint: string; result: TestResult | null; loading: boolean; onRunTest: () => void }) {
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">{title}</CardTitle><CardDescription>POST {endpoint}</CardDescription></CardHeader>
+        <CardContent className="flex items-center gap-3">
+          <Button onClick={onRunTest} disabled={loading} size="sm">
+            {loading ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Running...</> : <><Play className="w-4 h-4 mr-1.5" />Run Tests</>}
+          </Button>
+          {result && (
+            <div className="flex items-center gap-2 text-sm">
+              <Badge variant={result.summary.failed === 0 ? 'default' : 'destructive'}>
+                {result.summary.passed}/{result.summary.total} passed
+              </Badge>
+              {result.summary.failed > 0 && <Badge variant="destructive">{result.summary.failed} failed</Badge>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      {result && (
+        <Card className="border-border/50">
+          <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">Test Results</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              {result.results.map((t, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm py-1">
+                  {t.passed ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                  <span className="flex-1 font-medium">{t.name}</span>
+                  <span className="text-xs text-muted-foreground max-w-xs truncate">{t.detail}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ── Integration Tab ──
+function IntegrationTab({ intResult, intLoading, onRunTest }: { intResult: TestResult | null; intLoading: boolean; onRunTest: () => void }) {
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">API & Integration Engine</CardTitle><CardDescription>API Keys, Webhooks, OAuth Connections, External API Client</CardDescription></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">4</p>
+              <p className="text-[11px] text-muted-foreground">Core Modules</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">11</p>
+              <p className="text-[11px] text-muted-foreground">API Routes</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">4</p>
+              <p className="text-[11px] text-muted-foreground">DB Tables</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/50 space-y-0.5">
+              <p className="text-lg font-bold">10</p>
+              <p className="text-[11px] text-muted-foreground">Test Cases</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold">API Endpoints</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-1 text-xs font-mono">
+            {[
+              { method: 'GET', path: '/api/api-keys', desc: 'List API keys' },
+              { method: 'POST', path: '/api/api-keys', desc: 'Create API key' },
+              { method: 'PATCH', path: '/api/api-keys/:id', desc: 'Revoke API key' },
+              { method: 'GET', path: '/api/webhooks', desc: 'List webhooks' },
+              { method: 'POST', path: '/api/webhooks', desc: 'Create webhook' },
+              { method: 'GET', path: '/api/webhooks/:id', desc: 'Get webhook' },
+              { method: 'PATCH', path: '/api/webhooks/:id', desc: 'Update webhook' },
+              { method: 'DELETE', path: '/api/webhooks/:id', desc: 'Delete webhook' },
+              { method: 'POST', path: '/api/webhooks/:id/test', desc: 'Test ping' },
+              { method: 'GET', path: '/api/webhooks/deliveries', desc: 'Delivery logs' },
+              { method: 'GET', path: '/api/integrations', desc: 'List OAuth connections' },
+              { method: 'GET', path: '/api/integrations/providers', desc: 'List providers' },
+              { method: 'DELETE', path: '/api/integrations/:provider', desc: 'Revoke OAuth' },
+            ].map((ep, i) => (
+              <div key={i} className="flex items-center gap-2 py-0.5">
+                <Badge variant={ep.method === 'GET' ? 'secondary' : ep.method === 'DELETE' ? 'destructive' : 'default'} className="text-[10px] w-12 justify-center font-mono">{ep.method}</Badge>
+                <code className="text-xs text-muted-foreground">{ep.path}</code>
+                <span className="text-[11px] text-muted-foreground ml-auto">{ep.desc}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <TestRunnerTab title="Integration Tests" endpoint="/api/test/integration" result={intResult} loading={intLoading} onRunTest={onRunTest} />
     </div>
   )
 }
