@@ -105,6 +105,7 @@ async function main() {
     prisma.permission.create({ data: { key: 'automation.jobs.view', description: 'View jobs' } }),
     prisma.permission.create({ data: { key: 'automation.jobs.manage', description: 'Create and manage jobs' } }),
     prisma.permission.create({ data: { key: 'automation.approvals.manage', description: 'View and decide approvals' } }),
+    prisma.permission.create({ data: { key: 'automation.approvals.view', description: 'View approval requests' } }),
   ])
   console.log(`  ✓ Created ${permissions.length} permissions`)
 

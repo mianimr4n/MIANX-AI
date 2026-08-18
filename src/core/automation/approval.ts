@@ -178,6 +178,15 @@ async function resumeWorkflowAfterApproval(
   }
 
   if (decision === 'approved') {
+    // Extract the step index from the approval's requestedAction
+    let resumeAfterStep: number | undefined;
+    try {
+      const action = JSON.parse(approval.requestedAction);
+      if (typeof action.stepIndex === 'number') {
+        resumeAfterStep = action.stepIndex;
+      }
+    } catch { /* ignore */ }
+
     await db.workflowRun.update({
       where: { id: workflowRunId },
       data: { status: 'running' },
@@ -185,7 +194,7 @@ async function resumeWorkflowAfterApproval(
 
     // Dynamically import to avoid circular dependency.
     const { executeWorkflowRun } = await import('./workflow-engine');
-    await executeWorkflowRun(workflowRunId, run.organizationId);
+    await executeWorkflowRun(workflowRunId, run.organizationId, resumeAfterStep);
   } else {
     await db.workflowRun.update({
       where: { id: workflowRunId },

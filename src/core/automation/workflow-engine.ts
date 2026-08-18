@@ -146,6 +146,7 @@ async function executeStep(
             requestedAction: JSON.stringify({
               stepId: step.id,
               stepName: step.name,
+              stepIndex: context.currentStepIndex,
               requiredRole: cfg.requiredRole ?? null,
             }),
             expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
@@ -342,10 +343,12 @@ export async function triggerWorkflow(
  *
  * @param runId - The WorkflowRun ID
  * @param organizationId - Organization ID for scoping
+ * @param resumeAfterStep - Optional step index to resume from (for post-approval continuation)
  */
 export async function executeWorkflowRun(
   runId: string,
   organizationId: string,
+  resumeAfterStep?: number,
 ): Promise<void> {
   const run = await db.workflowRun.findUnique({
     where: { id: runId, organizationId },
@@ -372,11 +375,11 @@ export async function executeWorkflowRun(
   // Mark the run as running
   await db.workflowRun.update({
     where: { id: run.id },
-    data: { status: 'running', startedAt: new Date() },
+    data: { status: 'running', startedAt: run.startedAt ?? new Date() },
   });
 
-  // Evaluate workflow-level entry conditions
-  if (conditions.length > 0 && !evaluateAllConditions(conditions, context)) {
+  // Evaluate workflow-level entry conditions (skip on resume)
+  if (resumeAfterStep === undefined && conditions.length > 0 && !evaluateAllConditions(conditions, context)) {
     await db.workflowRun.update({
       where: { id: run.id },
       data: { status: 'completed', completedAt: new Date(), output: JSON.stringify({ skipped: true, reason: 'entry_conditions_not_met' }) },
@@ -384,9 +387,28 @@ export async function executeWorkflowRun(
     return;
   }
 
-  // Execute steps sequentially
-  for (let i = 0; i < steps.length; i++) {
+  // On resume, reconstruct stepOutputs from previously completed step runs
+  const startStep = resumeAfterStep !== undefined ? resumeAfterStep + 1 : 0;
+  if (resumeAfterStep !== undefined) {
+    const completedSteps = await db.workflowStepRun.findMany({
+      where: { workflowRunId: run.id, status: 'completed' },
+      orderBy: { createdAt: 'asc' },
+    });
+    for (const sr of completedSteps) {
+      if (sr.output) {
+        try {
+          // Find the step by stepId to use as key
+          const parsed = JSON.parse(sr.output);
+          context.stepOutputs[sr.stepId] = parsed;
+        } catch { /* ignore parse errors */ }
+      }
+    }
+  }
+
+  // Execute steps sequentially starting from startStep
+  for (let i = startStep; i < steps.length; i++) {
     const step = steps[i];
+    context.currentStepIndex = i;
 
     // Update current step index
     await db.workflowRun.update({

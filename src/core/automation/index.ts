@@ -71,6 +71,12 @@ export {
   retryFailedJobs,
 } from './job-queue';
 
+// ── Event-Workflow Bridge ───────────────────────────────────
+export {
+  initEventWorkflowBridge,
+  matchEventType as matchEventWorkflowType,
+} from './event-workflow-bridge';
+
 // ── Approvals ─────────────────────────────────────────────────
 export {
   checkExpiredApprovals,

@@ -12,7 +12,7 @@ export const PHASES = [
   { id: 2, name: 'Identity and Authorization', duration: 'Week 4-6', status: 'completed' as const, focus: 'Auth, RBAC, permissions' },
   { id: 3, name: 'Domain and Module Engine', duration: 'Week 6-8', status: 'completed' as const, focus: 'Domain registry, manifests' },
   { id: 4, name: 'AI Core Foundation', duration: 'Week 8-12', status: 'completed' as const, focus: 'AI router, agents, tools' },
-  { id: 5, name: 'Event and Automation', duration: 'Week 12-14', status: 'in-progress' as const, focus: 'Events, workflows, jobs' },
+  { id: 5, name: 'Event and Automation', duration: 'Week 12-14', status: 'completed' as const, focus: 'Events, workflows, jobs' },
   { id: 6, name: 'API and Integration', duration: 'Week 14-16', status: 'pending' as const, focus: 'APIs, webhooks, OAuth' },
   { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'pending' as const, focus: 'Plans, subscriptions, usage' },
   { id: 8, name: 'Frontend Platform', duration: 'Week 18-22', status: 'pending' as const, focus: 'App shell, design system' },

@@ -56,3 +56,33 @@ Stage Summary:
 - All AI core modules fully functional with custom agent support
 - Clean build confirmed
 
+---
+Task ID: 5-complete
+Agent: main
+Task: Phase 5 Event and Automation — gap analysis and completion
+
+Work Log:
+- Read all 6 files in src/core/automation/ (types, event-bus, events, workflow-engine, job-queue, approval, index)
+- Read all 12 API routes (events, workflows CRUD, workflows/runs, jobs CRUD+retry, approvals CRUD+decide)
+- Read test endpoint (12 tests) and seed data (5 events, 3 workflows, 2 jobs)
+- Ran build — confirmed 0 errors
+- Identified 4 gaps
+
+Gap 1 (CRITICAL): No Event→Workflow bridge. Events published but never triggered matching workflows.
+  Fix: Created src/core/automation/event-workflow-bridge.ts — subscribes to all events, queries active workflows with matching triggerConfig.eventType, triggers them asynchronously. Initialized via src/instrumentation.ts (Next.js server startup).
+
+Gap 2: Workflow resume after approval always restarted from step 0.
+  Fix: Added resumeAfterStep param to executeWorkflowRun(), added currentStepIndex to WorkflowContext, approval step now records stepIndex in requestedAction, resumeWorkflowAfterApproval extracts stepIndex and passes it.
+
+Gap 3: Test suite bugs — createWorkflow called with JSON strings instead of typed objects, condition evaluator tests used wrong context shape (payload vs input/stepOutputs).
+  Fix: Fixed all 7 test assertions to use correct types and context structure.
+
+Gap 4: Missing automation.approvals.view permission (used in approvals/[id] route but not in seed).
+  Fix: Added permission to seed.ts.
+
+Phase status updated: Phase 5 → completed, Phase 6 now next.
+Clean build confirmed.
+
+Stage Summary:
+- Phase 5 complete: Event outbox, in-process event bus, event→workflow bridge, workflow engine with 5 step types, approval with resume, job queue with 2 built-in executors, 12 API routes, 12 tests, seed data
+

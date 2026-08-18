@@ -166,6 +166,7 @@ export interface WorkflowContext {
   workflowRunId: string;
   organizationId: string;
   workflowId: string;
+  currentStepIndex?: number;
 }
 
 // ── Job Types ───────────────────────────────────────────────────
