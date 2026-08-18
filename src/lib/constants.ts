@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 export const APP_NAME = 'Mianx.ai'
-export const APP_VERSION = '0.3.0'
+export const APP_VERSION = '0.4.0'
 export const APP_DESCRIPTION = 'Multi-Tenant, Multi-Domain, AI-Native Business Operating System'
 
 export const PHASES = [
@@ -11,8 +11,8 @@ export const PHASES = [
   { id: 1, name: 'Database and Tenancy', duration: 'Week 2-4', status: 'completed' as const, focus: 'PostgreSQL schema and RLS' },
   { id: 2, name: 'Identity and Authorization', duration: 'Week 4-6', status: 'completed' as const, focus: 'Auth, RBAC, permissions' },
   { id: 3, name: 'Domain and Module Engine', duration: 'Week 6-8', status: 'completed' as const, focus: 'Domain registry, manifests' },
-  { id: 4, name: 'AI Core Foundation', duration: 'Week 8-12', status: 'in-progress' as const, focus: 'AI router, agents, tools' },
-  { id: 5, name: 'Event and Automation', duration: 'Week 12-14', status: 'pending' as const, focus: 'Events, workflows, jobs' },
+  { id: 4, name: 'AI Core Foundation', duration: 'Week 8-12', status: 'completed' as const, focus: 'AI router, agents, tools' },
+  { id: 5, name: 'Event and Automation', duration: 'Week 12-14', status: 'in-progress' as const, focus: 'Events, workflows, jobs' },
   { id: 6, name: 'API and Integration', duration: 'Week 14-16', status: 'pending' as const, focus: 'APIs, webhooks, OAuth' },
   { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'pending' as const, focus: 'Plans, subscriptions, usage' },
   { id: 8, name: 'Frontend Platform', duration: 'Week 18-22', status: 'pending' as const, focus: 'App shell, design system' },
@@ -44,6 +44,10 @@ export const ARCHITECTURE_LAYERS = [
 
 export const AI_TABLES = [
   'conversations', 'ai_messages', 'agent_configs',
+] as const
+
+export const AUTOMATION_TABLES = [
+  'events', 'workflows', 'workflow_runs', 'workflow_step_runs', 'jobs', 'approvals',
 ] as const
 
 export const SYSTEM_ROLES = ['owner', 'admin', 'member', 'viewer'] as const

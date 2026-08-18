@@ -96,6 +96,14 @@ async function main() {
     prisma.permission.create({ data: { key: 'ai.chat', description: 'Send messages to AI agents' } }),
     prisma.permission.create({ data: { key: 'ai.conversations.view', description: 'View AI conversations' } }),
     prisma.permission.create({ data: { key: 'ai.agents.manage', description: 'Create and configure AI agents' } }),
+    // Automation permissions
+    prisma.permission.create({ data: { key: 'automation.events.manage', description: 'Publish and manage events' } }),
+    prisma.permission.create({ data: { key: 'automation.workflows.view', description: 'View workflows and runs' } }),
+    prisma.permission.create({ data: { key: 'automation.workflows.manage', description: 'Create and configure workflows' } }),
+    prisma.create({ data: { key: 'automation.workflows.execute', description: 'Trigger workflow execution' } }),
+    prisma.permission.create({ data: { key: 'automation.jobs.view', description: 'View jobs' } }),
+    prisma.permission.create({ data: { key: 'automation.jobs.manage', description: 'Create and manage jobs' } }),
+    prisma.permission.create({ data: { key: 'automation.approvals.manage', description: 'View and decide approvals' } }),
   ])
   console.log(`  ✓ Created ${permissions.length} permissions`)
 
@@ -329,6 +337,110 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   ])
   console.log('  ✓ Created 7 sample messages across 3 conversations')
 
+  // ══════════════════════════════════════════════════════════════
+  // AUTOMATION (Phase 5 — Event and Automation)
+  // ══════════════════════════════════════════════════════════════
+
+  // ── Sample Events ──
+  const sampleEvents = await Promise.all([
+    prisma.event.create({
+      data: { organizationId: orgs[0].id, eventType: 'poultry.flock.created', eventVersion: '1',
+        domainId: domains[0].id, sourceType: 'user', actorType: 'user', actorId: profiles[0].userId,
+        payload: JSON.stringify({ flockName: 'Batch A-101', shedId: 'shed-1', breed: 'Cobb-500', count: 5000 }),
+        correlationId: 'corr-seed-001',
+      },
+    }),
+    prisma.event.create({
+      data: { organizationId: orgs[0].id, eventType: 'poultry.mortality.recorded', eventVersion: '1',
+        domainId: domains[0].id, sourceType: 'system', actorType: 'system',
+        causationId: 'evt-seed-001',
+        payload: JSON.stringify({ flockId: 'flock-1', date: '2026-08-18', mortalityCount: 15, mortalityRate: 0.003, avgWeight: 2.1 }),
+        correlationId: 'corr-seed-002',
+      },
+    }),
+    prisma.event.create({
+      data: { organizationId: orgs[1].id, eventType: 'restaurant.order.created', eventVersion: '1',
+        domainId: domains[1].id, sourceType: 'user', actorType: 'user', actorId: profiles[0].userId,
+        payload: JSON.stringify({ orderId: 'ORD-001', items: [{ name: 'Grilled Chicken', qty: 2, price: 25 }], total: 50 }),
+        correlationId: 'corr-seed-003',
+      },
+    }),
+    prisma.event.create({
+      data: { organizationId: orgs[0].id, eventType: 'poultry.inventory.low', eventVersion: '1',
+        domainId: domains[0].id, sourceType: 'system', actorType: 'system',
+        causationId: 'evt-seed-002',
+        payload: JSON.stringify({ itemId: 'feed-protein-001', currentStock: 50, threshold: 200, unit: 'kg' }),
+        correlationId: 'corr-seed-002', status: 'delivered', deliveredAt: new Date(),
+      },
+    }),
+    prisma.event.create({
+      data: { organizationId: orgs[1].id, eventType: 'restaurant.inventory.low', eventVersion: '1',
+        domainId: domains[1].id, sourceType: 'system', actorType: 'system',
+        payload: JSON.stringify({ itemId: 'rice-basmati-001', currentStock: 5, threshold: 20, unit: 'kg' }),
+      },
+    }),
+  ])
+  console.log(`  ✓ Created ${sampleEvents.length} sample events`)
+
+  // ── Sample Workflows ──
+  const sampleWorkflows = await Promise.all([
+    prisma.workflow.create({
+      data: {
+        organizationId: orgs[0].id, name: 'Mortality Alert', slug: 'mortality-alert',
+        description: 'Alert farm manager when mortality rate exceeds threshold',
+        triggerType: 'event',
+        triggerConfig: JSON.stringify({ eventType: 'poultry.mortality.recorded' }),
+        conditions: JSON.stringify([{ field: 'payload.mortalityRate', operator: 'gt', value: 0.002 }]),
+        steps: JSON.stringify([
+          { id: 'check-threshold', name: 'Check Mortality Rate', type: 'condition', config: { field: 'payload.mortalityRate', operator: 'gt', value: 0.002 } },
+          { id: 'analyze', name: 'AI Analysis', type: 'ai_decision', config: { prompt: 'Analyze this mortality event and provide a brief recommendation.', model: 'gpt-4o-mini', provider: 'openai' } },
+          { id: 'notify', name: 'Notify Manager', type: 'action', config: { type: 'send_notification', params: { type: 'alert', title: 'Mortality Alert', body: 'Mortality rate exceeded threshold. AI analysis available.' } } },
+        ]),
+        retryPolicy: JSON.stringify({ maxAttempts: 2, backoffMs: 30000, maxBackoffMs: 300000 }),
+        timeoutSeconds: 120,
+        status: 'active',
+      },
+    }),
+    prisma.workflow.create({
+      data: {
+        organizationId: orgs[0].id, name: 'Low Feed Inventory', slug: 'low-feed-inventory',
+        description: 'Notify when feed stock falls below threshold',
+        triggerType: 'event',
+        triggerConfig: JSON.stringify({ eventType: 'poultry.inventory.low' }),
+        conditions: JSON.stringify([{ field: 'payload.currentStock', operator: 'lt', value: 'payload.threshold' }]),
+        steps: JSON.stringify([
+          { id: 'check', name: 'Verify Stock Level', type: 'condition', config: { field: 'payload.currentStock', operator: 'lt', value: 'payload.threshold' } },
+          { id: 'notify', name: 'Send Alert', type: 'action', config: { type: 'send_notification', params: { type: 'alert', title: 'Low Feed Stock', body: 'Feed inventory is below threshold. Consider reordering.' } } },
+        ]),
+        timeoutSeconds: 60,
+        status: 'active',
+      },
+    }),
+    prisma.workflow.create({
+      data: {
+        organizationId: orgs[1].id, name: 'New Order Notification', slug: 'new-order-notification',
+        description: 'Notify kitchen staff when a new order is placed',
+        triggerType: 'event',
+        triggerConfig: JSON.stringify({ eventType: 'restaurant.order.created' }),
+        steps: JSON.stringify([
+          { id: 'notify-kitchen', name: 'Notify Kitchen', type: 'action', config: { type: 'send_notification', params: { type: 'info', title: 'New Order', body: 'A new order has been placed. Check kitchen display.' } } },
+        ]),
+        timeoutSeconds: 30,
+        status: 'active',
+      },
+    }),
+  ])
+  console.log(`  ✓ Created ${sampleWorkflows.length} sample workflows`)
+
+  // ── Sample Job ──
+  await prisma.job.create({
+    data: { organizationId: orgs[0].id, type: 'send_notification', payload: JSON.stringify({ type: 'system', title: 'Daily Summary', body: 'This is a scheduled daily summary notification.' }), priority: 'low', status: 'completed', attempts: 1, runAt: new Date(), completedAt: new Date() },
+  })
+  await prisma.job.create({
+    data: { organizationId: orgs[0].id, type: 'send_notification', payload: JSON.stringify({ type: 'system', title: 'Feed Check', body: 'Scheduled feed inventory check job.' }), priority: 'normal', scheduledAt: new Date(Date.now() + 86400000), status: 'pending' },
+  })
+  console.log('  ✓ Created 2 sample jobs')
+
   console.log('\n✅ Seed complete! Summary:')
   console.log(`   Organizations: ${orgs.length}`)
   console.log(`   Profiles: ${profiles.length}`)
@@ -342,6 +454,9 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   console.log(`   Teams: ${teams.length}`)
   console.log(`   Agent Configs: ${agentConfigs.length}`)
   console.log(`   Conversations: ${sampleConvos.length}`)
+  console.log(`   Events: ${sampleEvents.length}`)
+  console.log(`   Workflows: ${sampleWorkflows.length}`)
+  console.log(`   Jobs: 2`)
 }
 
 main()

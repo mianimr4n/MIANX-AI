@@ -58,6 +58,11 @@ model Organization {
   modules         OrganizationModule[]
   conversations   Conversation[]
   agentConfigs    AgentConfig[]
+  events          Event[]
+  workflows       Workflow[]
+  workflowRuns   WorkflowRun[]
+  jobs           Job[]
+  approvals      Approval[]
 }
 
 model Profile {
@@ -361,4 +366,196 @@ model AgentConfig {
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([organizationId, slug])
+}
+
+// ── AUTOMATION TABLES ─────────────────────────────────────────
+
+enum EventStatus {
+  pending
+  delivered
+  failed
+  dead_lettered
+}
+
+enum WorkflowStatus {
+  draft
+  active
+  disabled
+  archived
+}
+
+enum RunStatus {
+  queued
+  running
+  waiting
+  waiting_approval
+  completed
+  failed
+  cancelled
+  timed_out
+  dead_lettered
+}
+
+enum StepStatus {
+  pending
+  running
+  completed
+  failed
+  skipped
+  cancelled
+}
+
+enum JobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum JobPriority {
+  low
+  normal
+  high
+  critical
+}
+
+enum ApprovalDecision {
+  pending
+  approved
+  rejected
+  expired
+}
+
+model Event {
+  id              String     @id @default(cuid())
+  eventType       String
+  eventVersion    String     @default("1")
+  organizationId  String
+  domainId        String?
+  sourceType      String     @default("system")
+  sourceId        String?
+  actorType       String     @default("system")
+  actorId         String?
+  correlationId   String?
+  causationId     String?
+  payload         String
+  metadata        String?
+  status          EventStatus @default(pending)
+  deliveredAt     DateTime?
+  createdAt       DateTime   @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  triggeredRuns WorkflowRun[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([eventType, status])
+}
+
+model Workflow {
+  id              String         @id @default(cuid())
+  organizationId  String
+  name            String
+  slug            String
+  description     String?
+  triggerType     String         @default("event")
+  triggerConfig   String
+  steps           String
+  conditions      String?
+  retryPolicy     String?
+  timeoutSeconds  Int            @default(300)
+  status          WorkflowStatus @default(draft)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  runs           WorkflowRun[]
+
+  @@unique([organizationId, slug])
+}
+
+model WorkflowRun {
+  id              String     @id @default(cuid())
+  workflowId      String
+  organizationId  String
+  triggerEventId  String?
+  status          RunStatus  @default(queued)
+  input           String?
+  output          String?
+  currentStep     Int?
+  error           String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  workflow    Workflow       @relation(fields: [workflowId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  triggerEvent Event?        @relation(fields: [triggerEventId], references: [id])
+  stepRuns    WorkflowStepRun[]
+  approvals    Approval[]
+
+  @@index([workflowId, status])
+  @@index([organizationId, status])
+}
+
+model WorkflowStepRun {
+  id              String     @id @default(cuid())
+  workflowRunId  String
+  stepId         String
+  status          StepStatus @default(pending)
+  attempt         Int        @default(1)
+  input           String?
+  output          String?
+  error           String?
+  idempotencyKey String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  @@index([workflowRunId])
+  @@unique([workflowRunId, stepId, idempotencyKey])
+}
+
+model Job {
+  id              String       @id @default(cuid())
+  organizationId  String
+  type            String
+  payload         String?
+  status          JobStatus   @default(pending)
+  priority        JobPriority  @default(normal)
+  scheduledAt     DateTime?
+  attempts        Int          @default(0)
+  maxAttempts     Int          @default(3)
+  lastError       String?
+  runAt           DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, status, priority, scheduledAt])
+}
+
+model Approval {
+  id                String           @id @default(cuid())
+  workflowRunId     String
+  workflowStepRunId String?
+  organizationId      String
+  requestedAction    String
+  requestedBy        String?
+  approvedBy         String?
+  decision          ApprovalDecision  @default(pending)
+  reason            String?
+  expiresAt         DateTime?
+  decidedAt         DateTime?
+  createdAt          DateTime         @default(now())
+
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id])
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+
+  @@index([decision, createdAt])
 }

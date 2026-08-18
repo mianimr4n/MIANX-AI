@@ -18,6 +18,7 @@ import {
   CORE_TABLES,
   DOMAIN_TABLES,
   AI_TABLES,
+  AUTOMATION_TABLES,
   ARCHITECTURE_LAYERS,
   APP_VERSION,
 } from '@/lib/constants'
@@ -80,6 +81,8 @@ export default function HomePage() {
   const [aiResult, setAiResult] = useState<TestResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiModels, setAiModels] = useState<{ models: { id: string; provider: string; displayName: string; tier: string; capabilities: { streaming: boolean; toolUse: boolean; vision: boolean } }[]; configuredProviders: { provider: string; modelCount: number }[] } | null>(null)
+  const [autoResult, setAutoResult] = useState<TestResult | null>(null)
+  const [autoLoading, setAutoLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
 
   const fetchData = useCallback(() => {
@@ -95,12 +98,13 @@ export default function HomePage() {
   const runIso = async () => { setIsoLoading(true); setIsoResult(null); try { const r = await fetch('/api/test/isolation', { method: 'POST' }); setIsoResult((await r.json()).data) } catch { } finally { setIsoLoading(false) } }
   const runDomain = async () => { setDomainLoading(true); setDomainResult(null); try { const r = await fetch('/api/test/domain-engine', { method: 'POST' }); setDomainResult((await r.json()).data) } catch { } finally { setDomainLoading(false) } }
   const runAi = async () => { setAiLoading(true); setAiResult(null); try { const r = await fetch('/api/test/ai-core', { method: 'POST' }); setAiResult((await r.json()).data) } catch { } finally { setAiLoading(false) } }
+  const runAuto = async () => { setAutoLoading(true); setAutoResult(null); try { const r = await fetch('/api/test/automation', { method: 'POST' }); setAutoResult((await r.json()).data) } catch { } finally { setAutoLoading(false) } }
 
   const completedPhases = PHASES.filter(p => p.status === 'completed').length
   const inProgressPhases = PHASES.filter(p => p.status === 'in-progress').length
   const progressPct = Math.round(((completedPhases + inProgressPhases * 0.5) / PHASES.length) * 100)
   const totalModules = domains?.reduce((s, d) => s + d._count.modules, 0) ?? 0
-  const totalApiRoutes = 38 // Phase 0-4 combined
+  const totalApiRoutes = 60 // Phases 0-5 combined
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -137,7 +141,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
-                    Phase 4: AI Core Foundation
+                    Phase 5: Event & Automation
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Multi-Tenant, Multi-Domain, AI-Native Business Operating System
@@ -169,7 +173,7 @@ export default function HomePage() {
 
         {/* Tab Navigation */}
         <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit overflow-x-auto">
-          {(['overview', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
+          {(['overview', 'automation', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {tab}
             </button>
@@ -178,7 +182,7 @@ export default function HomePage() {
 
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><OverviewTab health={health} orgs={orgs} domains={domains} /></motion.div>}
-          {activeTab === 'ai-core' && <motion.div key="ai-core" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AiCoreTab aiResult={aiResult} aiLoading={aiLoading} onRunTest={runAi} aiModels={aiModels} /></motion.div>}
+          {activeTab === 'automation' && <motion.div key="automation" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AutomationTab autoResult={autoResult} autoLoading={autoLoading} onRunTest={runAuto} /></motion.div>}
           {activeTab === 'domains' && <motion.div key="domains" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><DomainsTab domains={domains} domainResult={domainResult} domainLoading={domainLoading} onRunTest={runDomain} /></motion.div>}
           {activeTab === 'authorization' && <motion.div key="authorization" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AuthTab authResult={authResult} authLoading={authLoading} onRunTest={runAuth} /></motion.div>}
           {activeTab === 'tenancy' && <motion.div key="tenancy" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TenancyTab isoResult={isoResult} isoLoading={isoLoading} onRunTest={runIso} /></motion.div>}
