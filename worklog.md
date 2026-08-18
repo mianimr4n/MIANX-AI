@@ -44,3 +44,28 @@ Stage Summary:
 - 3 domains, 11 modules, 3 org-activations, 5 module-activations seeded
 - 25 API routes built, 24 automated tests passing
 - Permission wildcard matching bug fixed (security)
+
+---
+Task ID: 2
+Agent: main
+Task: Phase 4 — AI Core Foundation
+
+Work Log:
+- Installed ai, @ai-sdk/openai, @ai-sdk/anthropic, @ai-sdk/google
+- Added 3 Prisma models: Conversation, AiMessage, AgentConfig (with FK to Organization)
+- Built src/ai/types.ts — Full type system (providers, models, tools, agents, chat)
+- Built src/ai/router.ts — 7 models across 3 providers, tier-based selection, provider fallback
+- Built src/ai/tools.ts — 6 built-in tools (orgs, domains, modules, members, stats, audit)
+- Built src/ai/agents.ts — 2 system agents (General Assistant, Business Analyst)
+- Built src/ai/memory.ts — Conversation CRUD, message persistence, usage stats
+- Built src/ai/chat.ts — Streaming chat engine with Vercel AI SDK, tool execution
+- Created 7 API routes: /api/ai/models, /api/ai/agents, /api/ai/chat, /api/ai/conversations, /api/ai/conversations/:id, /api/ai/usage, /api/test/ai-core
+- Added 3 AI permissions: ai.chat, ai.conversations.view, ai.agents.manage
+- Updated dashboard with AI Core tab (6 concept cards, 8 API endpoints, 11-test suite)
+- Added AI_TABLES to constants, updated version to 0.2.0
+
+Stage Summary:
+- Phase 4 (AI Core Foundation) built: 5 core files, 7 API routes, 3 DB models
+- 11/11 automated tests passing
+- 33 total API routes across all phases
+- Chat works when API keys configured, graceful 503 when not

@@ -14,6 +14,9 @@ async function main() {
   await prisma.membershipRole.deleteMany()
   await prisma.rolePermission.deleteMany()
   await prisma.teamMember.deleteMany()
+  await prisma.aiMessage.deleteMany()
+  await prisma.conversation.deleteMany()
+  await prisma.agentConfig.deleteMany()
   await prisma.organizationModule.deleteMany()
   await prisma.organizationDomain.deleteMany()
   await prisma.organizationMembership.deleteMany()
@@ -89,6 +92,10 @@ async function main() {
     prisma.permission.create({ data: { key: 'module.configure', description: 'Configure module settings' } }),
     // Audit permissions
     prisma.permission.create({ data: { key: 'audit.view', description: 'View audit logs' } }),
+    // AI permissions
+    prisma.permission.create({ data: { key: 'ai.chat', description: 'Send messages to AI agents' } }),
+    prisma.permission.create({ data: { key: 'ai.conversations.view', description: 'View AI conversations' } }),
+    prisma.permission.create({ data: { key: 'ai.agents.manage', description: 'Create and configure AI agents' } }),
   ])
   console.log(`  ✓ Created ${permissions.length} permissions`)
 
@@ -107,9 +114,9 @@ async function main() {
     await Promise.all(
       adminPerms.map(p => prisma.rolePermission.create({ data: { roleId: adminRole.id, permissionId: p.id } }))
     )
-    // Member gets view + domain.view + domain.activate
+    // Member gets view + domain.view + domain.activate + ai.chat
     const memberPerms = permissions.filter(p =>
-      p.key.endsWith('.view') || p.key === 'domain.view'
+      p.key.endsWith('.view') || p.key === 'domain.view' || p.key === 'ai.chat'
     )
     await Promise.all(
       memberPerms.map(p => prisma.rolePermission.create({ data: { roleId: memberRole.id, permissionId: p.id } }))

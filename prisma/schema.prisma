@@ -56,6 +56,8 @@ model Organization {
   notifications   Notification[]
   domains         OrganizationDomain[]
   modules         OrganizationModule[]
+  conversations   Conversation[]
+  agentConfigs    AgentConfig[]
 }
 
 model Profile {
@@ -287,4 +289,76 @@ model OrganizationModule {
   module       Module       @relation(fields: [moduleId], references: [id])
 
   @@unique([organizationId, moduleId])
+}
+
+// ── AI CORE TABLES ─────────────────────────────────────────────
+
+enum MessageRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum ConversationStatus {
+  active
+  archived
+  deleted
+}
+
+model Conversation {
+  id             String              @id @default(cuid())
+  organizationId String
+  userId         String
+  title          String?
+  agentSlug      String?
+  status         ConversationStatus @default(active)
+  metadata       String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  messages     AiMessage[]
+
+  @@index([organizationId, userId])
+}
+
+model AiMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  toolCalls      String?
+  toolResults    String?
+  model          String?
+  provider       String?
+  tokensIn       Int          @default(0)
+  tokensOut      Int          @default(0)
+  latencyMs      Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model AgentConfig {
+  id             String   @id @default(cuid())
+  organizationId String
+  slug           String
+  name           String
+  description    String?
+  systemPrompt   String
+  model          String
+  provider       String
+  temperature    Float    @default(0.7)
+  maxTokens      Int      @default(4096)
+  tools          String?
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, slug])
 }

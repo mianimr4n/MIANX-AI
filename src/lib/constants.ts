@@ -3,15 +3,15 @@
 // ══════════════════════════════════════════════════════════════════
 
 export const APP_NAME = 'Mianx.ai'
-export const APP_VERSION = '0.1.0'
+export const APP_VERSION = '0.2.0'
 export const APP_DESCRIPTION = 'Multi-Tenant, Multi-Domain, AI-Native Business Operating System'
 
 export const PHASES = [
   { id: 0, name: 'Project Foundation', duration: 'Week 1-2', status: 'completed' as const, focus: 'Setup and scaffolding' },
   { id: 1, name: 'Database and Tenancy', duration: 'Week 2-4', status: 'completed' as const, focus: 'PostgreSQL schema and RLS' },
   { id: 2, name: 'Identity and Authorization', duration: 'Week 4-6', status: 'completed' as const, focus: 'Auth, RBAC, permissions' },
-  { id: 3, name: 'Domain and Module Engine', duration: 'Week 6-8', status: 'in-progress' as const, focus: 'Domain registry, manifests' },
-  { id: 4, name: 'AI Core Foundation', duration: 'Week 8-12', status: 'pending' as const, focus: 'AI router, agents, tools' },
+  { id: 3, name: 'Domain and Module Engine', duration: 'Week 6-8', status: 'completed' as const, focus: 'Domain registry, manifests' },
+  { id: 4, name: 'AI Core Foundation', duration: 'Week 8-12', status: 'in-progress' as const, focus: 'AI router, agents, tools' },
   { id: 5, name: 'Event and Automation', duration: 'Week 12-14', status: 'pending' as const, focus: 'Events, workflows, jobs' },
   { id: 6, name: 'API and Integration', duration: 'Week 14-16', status: 'pending' as const, focus: 'APIs, webhooks, OAuth' },
   { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'pending' as const, focus: 'Plans, subscriptions, usage' },
@@ -40,6 +40,10 @@ export const ARCHITECTURE_LAYERS = [
   { name: 'AI Core', tech: 'Provider-agnostic Router', icon: 'brain' },
   { name: 'Automation', tech: 'Events + Workflows + Jobs', icon: 'workflow' },
   { name: 'Database', tech: 'PostgreSQL + Prisma ORM', icon: 'database' },
+] as const
+
+export const AI_TABLES = [
+  'conversations', 'ai_messages', 'agent_configs',
 ] as const
 
 export const SYSTEM_ROLES = ['owner', 'admin', 'member', 'viewer'] as const

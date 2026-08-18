@@ -6,7 +6,7 @@ import {
   Activity, Database, Shield, Blocks, Brain, Workflow,
   Globe, CheckCircle2, Circle, Clock, ArrowRight, Server,
   FolderTree, Table2, Cpu, Layers, Users, Building2, FileText,
-  ShieldCheck, Loader2, XCircle, Play, RefreshCw, Package, Puzzle,
+  ShieldCheck, Loader2, XCircle, Play, RefreshCw, Package, Puzzle, Bot, MessageSquare, Zap,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ import {
   PHASES,
   CORE_TABLES,
   DOMAIN_TABLES,
+  AI_TABLES,
   ARCHITECTURE_LAYERS,
   APP_VERSION,
 } from '@/lib/constants'
@@ -76,7 +77,9 @@ export default function HomePage() {
   const [isoLoading, setIsoLoading] = useState(false)
   const [domainResult, setDomainResult] = useState<TestResult | null>(null)
   const [domainLoading, setDomainLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
+  const [aiResult, setAiResult] = useState<TestResult | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'ai-core' | 'domains' | 'authorization' | 'database' | 'tenancy' | 'architecture'>('overview')
 
   const fetchData = useCallback(() => {
     fetch('/api/health').then(r => r.json()).then(setHealth).catch(() => {})
@@ -89,12 +92,13 @@ export default function HomePage() {
   const runAuth = async () => { setAuthLoading(true); setAuthResult(null); try { const r = await fetch('/api/test/authorization', { method: 'POST' }); setAuthResult((await r.json()).data) } catch { } finally { setAuthLoading(false) } }
   const runIso = async () => { setIsoLoading(true); setIsoResult(null); try { const r = await fetch('/api/test/isolation', { method: 'POST' }); setIsoResult((await r.json()).data) } catch { } finally { setIsoLoading(false) } }
   const runDomain = async () => { setDomainLoading(true); setDomainResult(null); try { const r = await fetch('/api/test/domain-engine', { method: 'POST' }); setDomainResult((await r.json()).data) } catch { } finally { setDomainLoading(false) } }
+  const runAi = async () => { setAiLoading(true); setAiResult(null); try { const r = await fetch('/api/test/ai-core', { method: 'POST' }); setAiResult((await r.json()).data) } catch { } finally { setAiLoading(false) } }
 
   const completedPhases = PHASES.filter(p => p.status === 'completed').length
   const inProgressPhases = PHASES.filter(p => p.status === 'in-progress').length
   const progressPct = Math.round(((completedPhases + inProgressPhases * 0.5) / PHASES.length) * 100)
   const totalModules = domains?.reduce((s, d) => s + d._count.modules, 0) ?? 0
-  const totalApiRoutes = 26 // Phase 1-3 combined
+  const totalApiRoutes = 33 // Phase 0-4 combined
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -131,7 +135,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
-                    Phase 3: Domain & Module Engine
+                    Phase 4: AI Core Foundation
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Multi-Tenant, Multi-Domain, AI-Native Business Operating System
@@ -163,7 +167,7 @@ export default function HomePage() {
 
         {/* Tab Navigation */}
         <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit overflow-x-auto">
-          {(['overview', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
+          {(['overview', 'ai-core', 'domains', 'authorization', 'database', 'tenancy', 'architecture'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium capitalize whitespace-nowrap ${activeTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {tab}
             </button>
@@ -172,6 +176,7 @@ export default function HomePage() {
 
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><OverviewTab health={health} orgs={orgs} domains={domains} /></motion.div>}
+          {activeTab === 'ai-core' && <motion.div key="ai-core" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AiCoreTab aiResult={aiResult} aiLoading={aiLoading} onRunTest={runAi} /></motion.div>}
           {activeTab === 'domains' && <motion.div key="domains" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><DomainsTab domains={domains} domainResult={domainResult} domainLoading={domainLoading} onRunTest={runDomain} /></motion.div>}
           {activeTab === 'authorization' && <motion.div key="authorization" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><AuthTab authResult={authResult} authLoading={authLoading} onRunTest={runAuth} /></motion.div>}
           {activeTab === 'tenancy' && <motion.div key="tenancy" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}><TenancyTab isoResult={isoResult} isoLoading={isoLoading} onRunTest={runIso} /></motion.div>}
@@ -183,7 +188,7 @@ export default function HomePage() {
       <footer className="mt-auto border-t border-border/50 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-muted-foreground">
           <span>Mianx.ai v{APP_VERSION} — Build the Core once. Build unlimited Business OS products on top.</span>
-          <span>Phase 3 / 11</span>
+          <span>Phase 4 / 11</span>
         </div>
       </footer>
     </div>
@@ -328,6 +333,73 @@ function DomainsTab({ domains, domainResult, domainLoading, onRunTest }: { domai
   )
 }
 
+// ── AI Core Tab ──
+function AiCoreTab({ aiResult, aiLoading, onRunTest }: { aiResult: TestResult | null; aiLoading: boolean; onRunTest: () => void }) {
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2"><Brain className="w-4 h-4" />Provider-Agnostic AI Router</CardTitle>
+          <CardDescription>Multiple LLM providers, automatic fallback, per-org model selection</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { title: '3 Providers', desc: 'OpenAI (GPT-4o, o3-mini), Anthropic (Claude 4), Google (Gemini 2.5)', color: 'from-blue-500/10 to-indigo-500/10' },
+              { title: 'AI Router', desc: 'Tier-based model selection: free/standard/premium with auto-fallback', color: 'from-purple-500/10 to-pink-500/10' },
+              { title: 'Tool System', desc: '6 built-in tools: org stats, domains, modules, members, audit logs', color: 'from-emerald-500/10 to-teal-500/10' },
+              { title: 'Agent Framework', desc: '2 system agents: General Assistant (OpenAI) + Business Analyst (Anthropic)', color: 'from-amber-500/10 to-orange-500/10' },
+              { title: 'Conversation Memory', desc: 'Multi-turn chat persisted per org/user with token tracking', color: 'from-cyan-500/10 to-blue-500/10' },
+              { title: 'Streaming', desc: 'Vercel AI SDK streaming with tool call support', color: 'from-rose-500/10 to-pink-500/10' },
+            ].map(item => (
+              <div key={item.title} className={`p-3 rounded-lg border border-border/50 bg-gradient-to-br ${item.color}`}>
+                <p className="text-sm font-semibold">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Zap className="w-4 h-4" />Phase 4 API Endpoints</CardTitle><CardDescription>AI chat, conversations, agents, models, usage (7 new endpoints)</CardDescription></CardHeader>
+        <CardContent>
+          <div className="space-y-1.5">
+            {[
+              { method: 'GET', path: '/api/ai/models', desc: 'List models + configured providers' },
+              { method: 'GET', path: '/api/ai/agents', desc: 'List system + custom agents' },
+              { method: 'POST', path: '/api/ai/chat', desc: 'Send message (streaming response)' },
+              { method: 'GET', path: '/api/ai/conversations', desc: 'List user conversations' },
+              { method: 'GET', path: '/api/ai/conversations/:id', desc: 'Conversation with messages' },
+              { method: 'DELETE', path: '/api/ai/conversations', desc: 'Archive a conversation' },
+              { method: 'GET', path: '/api/ai/usage', desc: 'AI usage statistics' },
+              { method: 'POST', path: '/api/test/ai-core', desc: 'Run 11 AI core tests' },
+            ].map(ep => (
+              <div key={ep.method + ep.path} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/30 transition-colors font-mono text-xs">
+                <Badge variant="outline" className={`text-[10px] px-1.5 shrink-0 font-mono ${ep.method === 'GET' ? 'text-emerald-600' : ep.method === 'POST' ? 'text-blue-600' : 'text-red-600'}`}>{ep.method}</Badge>
+                <span className="text-foreground truncate">{ep.path}</span>
+                <span className="text-muted-foreground font-sans text-[11px] hidden sm:inline truncate max-w-[200px]">{ep.desc}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div><CardTitle className="text-base font-semibold flex items-center gap-2"><ShieldCheck className="w-4 h-4" />AI Core Tests</CardTitle><CardDescription>11 automated tests</CardDescription></div>
+            <Button size="sm" onClick={onRunTest} disabled={aiLoading} className="gap-1.5 bg-purple-600 hover:bg-purple-700">{aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}{aiLoading ? 'Running...' : 'Run Tests'}</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {aiResult ? <TestResults results={aiResult.results} summary={aiResult.summary} /> : <p className="text-sm text-muted-foreground text-center py-6">Click &quot;Run Tests&quot; to execute the AI core test suite</p>}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ── Auth Tab ──
 function AuthTab({ authResult, authLoading, onRunTest }: { authResult: TestResult | null; authLoading: boolean; onRunTest: () => void }) {
   return (
@@ -461,6 +533,10 @@ function DatabaseTab() {
       <Card className="border-border/50">
         <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Blocks className="w-4 h-4" />Domain Engine Tables</CardTitle><CardDescription>4 tables for manifest-based domain and module management</CardDescription></CardHeader>
         <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{DOMAIN_TABLES.map(table => (<div key={table} className="flex items-center gap-2 p-2.5 rounded-md border border-border/50 hover:bg-muted/30 transition-colors"><Blocks className="w-3.5 h-3.5 text-teal-500 shrink-0" /><code className="text-xs font-mono">{table}</code></div>))}</div></CardContent>
+      </Card>
+      <Card className="border-border/50">
+        <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><Brain className="w-4 h-4" />AI Core Tables</CardTitle><CardDescription>3 tables for AI conversations, messages, and agent configs</CardDescription></CardHeader>
+        <CardContent><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{AI_TABLES.map(table => (<div key={table} className="flex items-center gap-2 p-2.5 rounded-md border border-border/50 hover:bg-muted/30 transition-colors"><Brain className="w-3.5 h-3.5 text-purple-500 shrink-0" /><code className="text-xs font-mono">{table}</code></div>))}</div></CardContent>
       </Card>
       <Card className="border-border/50">
         <CardHeader className="pb-3"><CardTitle className="text-base font-semibold flex items-center gap-2"><FolderTree className="w-4 h-4" />Project Structure</CardTitle></CardHeader>
