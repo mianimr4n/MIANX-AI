@@ -5,3 +5,4 @@
 export { POULTRY_DOMAIN_MANIFEST, POULTRY_PERMISSIONS } from './manifest'
 export { POULTRY_AGENTS } from './agents/registry'
 export { POULTRY_TOOLS } from './agents/tools'
+export { POULTRY_WORKFLOWS } from './workflows'

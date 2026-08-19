@@ -2,9 +2,10 @@
 // MIANX.AI — Poultry Health API
 // ══════════════════════════════════════════════════════
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/core/authorization/middleware'
 import * as healthService from '@/domains/poultry/services/health-service'
+import { validateCreateHealthRecord, formatValidationErrors } from '@/domains/poultry/validation'
 
 export const GET = withAuth(async (request, ctx) => {
   const { searchParams } = new URL(request.url)
@@ -34,8 +35,9 @@ export const GET = withAuth(async (request, ctx) => {
 
 export const POST = withAuth(async (request, ctx) => {
   const body = await request.json()
-  if (!body.flockId || !body.date || !body.type || !body.treatment) {
-    return NextResponse.json({ error: 'flockId, date, type, and treatment are required' }, { status: 400 })
+  const errors = validateCreateHealthRecord(body)
+  if (errors.length > 0) {
+    return NextResponse.json({ error: formatValidationErrors(errors) }, { status: 400 })
   }
   return healthService.createHealthRecord(ctx.organizationId, body)
 }, { permission: 'poultry.health.create' })

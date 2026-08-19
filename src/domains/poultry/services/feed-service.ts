@@ -53,17 +53,17 @@ export async function getFeedSummary(organizationId: string, opts?: { flockId?: 
     where.date = dateFilter
   }
 
-  const [totalKg, totalCost, byType] = await Promise.all([
+  const [feedAgg, recordCount, byType] = await Promise.all([
     db.poultryFeedRecord.aggregate({ where, _sum: { quantityKg: true, costUsd: true } }),
     db.poultryFeedRecord.count({ where }),
     db.poultryFeedRecord.groupBy({ where, by: ['feedType'], _sum: { quantityKg: true, costUsd: true } }),
   ])
 
   return apiEnvelope({
-    totalRecords: totalCost,
-    totalQuantityKg: totalKg._sum.quantityKg ?? 0,
-    totalCostUsd: totalKg._sum.costUsd ?? 0,
-    avgCostPerKg: (totalKg._sum.quantityKg ?? 0) > 0 ? (totalKg._sum.costUsd ?? 0) / (totalKg._sum.quantityKg ?? 1) : 0,
+    totalRecords: recordCount,
+    totalQuantityKg: feedAgg._sum.quantityKg ?? 0,
+    totalCostUsd: feedAgg._sum.costUsd ?? 0,
+    avgCostPerKg: (feedAgg._sum.quantityKg ?? 0) > 0 ? (feedAgg._sum.costUsd ?? 0) / (feedAgg._sum.quantityKg ?? 1) : 0,
     byFeedType: byType.map(t => ({ feedType: t.feedType, quantityKg: t._sum.quantityKg ?? 0, costUsd: t._sum.costUsd ?? 0 })),
   })
 }

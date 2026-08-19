@@ -105,10 +105,10 @@ export async function getFlockMetrics(organizationId: string, flockId: string) {
   if (!flock) return apiEnvelope(null, 'Flock not found')
 
   const [totalMortality, totalFeedCost, totalEggs, latestWeight] = await Promise.all([
-    db.poultryMortalityRecord.aggregate({ where: { flockId }, _sum: { count: true } }),
-    db.poultryFeedRecord.aggregate({ where: { flockId }, _sum: { costUsd: true, quantityKg: true } }),
-    db.poultryProductionRecord.aggregate({ where: { flockId }, _sum: { eggsCollected: true, totalWeightKg: true } }),
-    db.poultryProductionRecord.findFirst({ where: { flockId }, orderBy: { date: 'desc' }, select: { totalWeightKg: true } }),
+    db.poultryMortalityRecord.aggregate({ where: { flockId, organizationId }, _sum: { count: true } }),
+    db.poultryFeedRecord.aggregate({ where: { flockId, organizationId }, _sum: { costUsd: true, quantityKg: true } }),
+    db.poultryProductionRecord.aggregate({ where: { flockId, organizationId }, _sum: { eggsCollected: true, totalWeightKg: true } }),
+    db.poultryProductionRecord.findFirst({ where: { flockId, organizationId }, orderBy: { date: 'desc' }, select: { totalWeightKg: true } }),
   ])
 
   const mortalityRate = flock.quantity > 0 ? ((totalMortality._sum.count ?? 0) / flock.quantity * 100) : 0

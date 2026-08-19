@@ -2,9 +2,10 @@
 // MIANX.AI — Poultry Feed API
 // ══════════════════════════════════════════════════════
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/core/authorization/middleware'
 import * as feedService from '@/domains/poultry/services/feed-service'
+import { validateCreateFeedRecord, formatValidationErrors } from '@/domains/poultry/validation'
 
 export const GET = withAuth(async (request, ctx) => {
   const { searchParams } = new URL(request.url)
@@ -27,8 +28,9 @@ export const GET = withAuth(async (request, ctx) => {
 
 export const POST = withAuth(async (request, ctx) => {
   const body = await request.json()
-  if (!body.flockId || !body.date || !body.feedType || !body.quantityKg) {
-    return NextResponse.json({ error: 'flockId, date, feedType, and quantityKg are required' }, { status: 400 })
+  const errors = validateCreateFeedRecord(body)
+  if (errors.length > 0) {
+    return NextResponse.json({ error: formatValidationErrors(errors) }, { status: 400 })
   }
   return feedService.createFeedRecord(ctx.organizationId, body)
 }, { permission: 'poultry.feed.create' })

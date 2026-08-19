@@ -2,9 +2,10 @@
 // MIANX.AI — Poultry Sheds API
 // ══════════════════════════════════════════════════════
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/core/authorization/middleware'
 import * as shedService from '@/domains/poultry/services/shed-service'
+import { validateCreateShed, formatValidationErrors } from '@/domains/poultry/validation'
 
 export const GET = withAuth(async (request, ctx) => {
   const { searchParams } = new URL(request.url)
@@ -16,8 +17,9 @@ export const GET = withAuth(async (request, ctx) => {
 
 export const POST = withAuth(async (request, ctx) => {
   const body = await request.json()
-  if (!body.farmId || !body.name) {
-    return NextResponse.json({ error: 'farmId and name are required' }, { status: 400 })
+  const errors = validateCreateShed(body)
+  if (errors.length > 0) {
+    return NextResponse.json({ error: formatValidationErrors(errors) }, { status: 400 })
   }
   return shedService.createShed(ctx.organizationId, body)
 }, { permission: 'poultry.shed.create' })

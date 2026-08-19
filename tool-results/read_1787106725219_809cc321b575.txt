@@ -1,0 +1,1072 @@
+   200→model File {
+   201→  id             String   @id @default(cuid())
+   202→  organizationId String
+   203→  uploadedBy     String
+   204→  name           String
+   205→  storagePath    String
+   206→  mimeType       String?
+   207→  size           Int      @default(0)
+   208→  createdAt      DateTime @default(now())
+   209→
+   210→  organization Organization @relation(fields: [organizationId], references: [id])
+   211→}
+   212→
+   213→model AuditLog {
+   214→  id            String    @id @default(cuid())
+   215→  organizationId String
+   216→  actorType     ActorType
+   217→  actorId       String
+   218→  action        String
+   219→  resourceType  String
+   220→  resourceId    String?
+   221→  metadata      String?
+   222→  createdAt     DateTime  @default(now())
+   223→
+   224→  organization Organization @relation(fields: [organizationId], references: [id])
+   225→}
+   226→
+   227→model Notification {
+   228→  id              String    @id @default(cuid())
+   229→  organizationId String
+   230→  recipientUserId String
+   231→  type            String
+   232→  title           String
+   233→  body            String?
+   234→  data            String?
+   235→  readAt          DateTime?
+   236→  createdAt       DateTime  @default(now())
+   237→
+   238→  organization Organization @relation(fields: [organizationId], references: [id])
+   239→}
+   240→
+   241→// ── DOMAIN ENGINE TABLES ───────────────────────────────────────
+   242→
+   243→enum DomainStatus {
+   244→  draft
+   245→  available
+   246→  deprecated
+   247→  archived
+   248→}
+   249→
+   250→enum ModuleStatus {
+   251→  draft
+   252→  available
+   253→  disabled
+   254→  deprecated
+   255→}
+   256→
+   257→model Domain {
+   258→  id          String       @id @default(cuid())
+   259→  name        String
+   260→  slug        String       @unique
+   261→  version     String
+   262→  description String?
+   263→  status      DomainStatus @default(draft)
+   264→  manifest    String?
+   265→  createdAt   DateTime     @default(now())
+   266→  updatedAt   DateTime     @updatedAt
+   267→
+   268→  organizationDomains OrganizationDomain[]
+   269→  modules             Module[]
+   270→}
+   271→
+   272→model OrganizationDomain {
+   273→  id             String       @id @default(cuid())
+   274→  organizationId String
+   275→  domainId       String
+   276→  status         String       @default("active")
+   277→  configuration  String?
+   278→  activatedAt    DateTime?
+   279→  createdAt      DateTime     @default(now())
+   280→
+   281→  organization Organization @relation(fields: [organizationId], references: [id])
+   282→  domain       Domain       @relation(fields: [domainId], references: [id])
+   283→
+   284→  @@unique([organizationId, domainId])
+   285→}
+   286→
+   287→model Module {
+   288→  id          String       @id @default(cuid())
+   289→  domainId    String
+   290→  name        String
+   291→  slug        String
+   292→  version     String
+   293→  description String?
+   294→  status      ModuleStatus @default(draft)
+   295→  manifest    String?
+   296→
+   297→  domain Domain @relation(fields: [domainId], references: [id])
+   298→  orgModules OrganizationModule[]
+   299→
+   300→  @@unique([domainId, slug])
+   301→}
+   302→
+   303→model OrganizationModule {
+   304→  id             String   @id @default(cuid())
+   305→  organizationId String
+   306→  moduleId       String
+   307→  status         String   @default("active")
+   308→  configuration  String?
+   309→  activatedAt    DateTime?
+   310→  createdAt      DateTime @default(now())
+   311→
+   312→  organization Organization @relation(fields: [organizationId], references: [id])
+   313→  module       Module       @relation(fields: [moduleId], references: [id])
+   314→
+   315→  @@unique([organizationId, moduleId])
+   316→}
+   317→
+   318→// ── AI CORE TABLES ─────────────────────────────────────────────
+   319→
+   320→enum MessageRole {
+   321→  system
+   322→  user
+   323→  assistant
+   324→  tool
+   325→}
+   326→
+   327→enum ConversationStatus {
+   328→  active
+   329→  archived
+   330→  deleted
+   331→}
+   332→
+   333→model Conversation {
+   334→  id             String              @id @default(cuid())
+   335→  organizationId String
+   336→  userId         String
+   337→  title          String?
+   338→  agentSlug      String?
+   339→  status         ConversationStatus @default(active)
+   340→  metadata       String?
+   341→  createdAt      DateTime            @default(now())
+   342→  updatedAt      DateTime            @updatedAt
+   343→
+   344→  organization Organization  @relation(fields: [organizationId], references: [id])
+   345→  messages     AiMessage[]
+   346→
+   347→  @@index([organizationId, userId])
+   348→}
+   349→
+   350→model AiMessage {
+   351→  id             String       @id @default(cuid())
+   352→  conversationId String
+   353→  role           MessageRole
+   354→  content        String
+   355→  toolCalls      String?
+   356→  toolResults    String?
+   357→  model          String?
+   358→  provider       String?
+   359→  tokensIn       Int          @default(0)
+   360→  tokensOut      Int          @default(0)
+   361→  latencyMs      Int          @default(0)
+   362→  createdAt      DateTime     @default(now())
+   363→
+   364→  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+   365→
+   366→  @@index([conversationId, createdAt])
+   367→}
+   368→
+   369→model AgentConfig {
+   370→  id             String   @id @default(cuid())
+   371→  organizationId String
+   372→  slug           String
+   373→  name           String
+   374→  description    String?
+   375→  systemPrompt   String
+   376→  model          String
+   377→  provider       String
+   378→  temperature    Float    @default(0.7)
+   379→  maxTokens      Int      @default(4096)
+   380→  tools          String?
+   381→  status         String   @default("active")
+   382→  createdAt      DateTime @default(now())
+   383→  updatedAt      DateTime @updatedAt
+   384→
+   385→  organization Organization @relation(fields: [organizationId], references: [id])
+   386→
+   387→  @@unique([organizationId, slug])
+   388→}
+   389→
+   390→// ── AUTOMATION TABLES ─────────────────────────────────────────
+   391→
+   392→enum EventStatus {
+   393→  pending
+   394→  delivered
+   395→  failed
+   396→  dead_lettered
+   397→}
+   398→
+   399→enum WorkflowStatus {
+   400→  draft
+   401→  active
+   402→  disabled
+   403→  archived
+   404→}
+   405→
+   406→enum RunStatus {
+   407→  queued
+   408→  running
+   409→  waiting
+   410→  waiting_approval
+   411→  completed
+   412→  failed
+   413→  cancelled
+   414→  timed_out
+   415→  dead_lettered
+   416→}
+   417→
+   418→enum StepStatus {
+   419→  pending
+   420→  running
+   421→  completed
+   422→  failed
+   423→  skipped
+   424→  cancelled
+   425→}
+   426→
+   427→enum JobStatus {
+   428→  pending
+   429→  running
+   430→  completed
+   431→  failed
+   432→  cancelled
+   433→}
+   434→
+   435→enum JobPriority {
+   436→  low
+   437→  normal
+   438→  high
+   439→  critical
+   440→}
+   441→
+   442→enum ApprovalDecision {
+   443→  pending
+   444→  approved
+   445→  rejected
+   446→  expired
+   447→}
+   448→
+   449→model Event {
+   450→  id              String     @id @default(cuid())
+   451→  eventType       String
+   452→  eventVersion    String     @default("1")
+   453→  organizationId  String
+   454→  domainId        String?
+   455→  sourceType      String     @default("system")
+   456→  sourceId        String?
+   457→  actorType       String     @default("system")
+   458→  actorId         String?
+   459→  correlationId   String?
+   460→  causationId     String?
+   461→  payload         String
+   462→  metadata        String?
+   463→  status          EventStatus @default(pending)
+   464→  deliveredAt     DateTime?
+   465→  createdAt       DateTime   @default(now())
+   466→
+   467→  organization Organization @relation(fields: [organizationId], references: [id])
+   468→  triggeredRuns WorkflowRun[]
+   469→
+   470→  @@index([organizationId, status, createdAt])
+   471→  @@index([eventType, status])
+   472→}
+   473→
+   474→model Workflow {
+   475→  id              String         @id @default(cuid())
+   476→  organizationId  String
+   477→  name            String
+   478→  slug            String
+   479→  description     String?
+   480→  triggerType     String         @default("event")
+   481→  triggerConfig   String
+   482→  steps           String
+   483→  conditions      String?
+   484→  retryPolicy     String?
+   485→  timeoutSeconds  Int            @default(300)
+   486→  status          WorkflowStatus @default(draft)
+   487→  createdAt       DateTime       @default(now())
+   488→  updatedAt       DateTime       @updatedAt
+   489→
+   490→  organization Organization @relation(fields: [organizationId], references: [id])
+   491→  runs           WorkflowRun[]
+   492→
+   493→  @@unique([organizationId, slug])
+   494→}
+   495→
+   496→model WorkflowRun {
+   497→  id              String     @id @default(cuid())
+   498→  workflowId      String
+   499→  organizationId  String
+   500→  triggerEventId  String?
+   501→  status          RunStatus  @default(queued)
+   502→  input           String?
+   503→  output          String?
+   504→  currentStep     Int?
+   505→  error           String?
+   506→  startedAt       DateTime?
+   507→  completedAt     DateTime?
+   508→  createdAt       DateTime   @default(now())
+   509→  updatedAt       DateTime   @updatedAt
+   510→
+   511→  workflow    Workflow       @relation(fields: [workflowId], references: [id])
+   512→  organization Organization  @relation(fields: [organizationId], references: [id])
+   513→  triggerEvent Event?        @relation(fields: [triggerEventId], references: [id])
+   514→  stepRuns    WorkflowStepRun[]
+   515→  approvals    Approval[]
+   516→
+   517→  @@index([workflowId, status])
+   518→  @@index([organizationId, status])
+   519→}
+   520→
+   521→model WorkflowStepRun {
+   522→  id              String     @id @default(cuid())
+   523→  workflowRunId  String
+   524→  stepId         String
+   525→  status          StepStatus @default(pending)
+   526→  attempt         Int        @default(1)
+   527→  input           String?
+   528→  output          String?
+   529→  error           String?
+   530→  idempotencyKey String?
+   531→  startedAt       DateTime?
+   532→  completedAt     DateTime?
+   533→  createdAt       DateTime   @default(now())
+   534→
+   535→  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+   536→
+   537→  @@index([workflowRunId])
+   538→  @@unique([workflowRunId, stepId, idempotencyKey])
+   539→}
+   540→
+   541→model Job {
+   542→  id              String       @id @default(cuid())
+   543→  organizationId  String
+   544→  type            String
+   545→  payload         String?
+   546→  status          JobStatus   @default(pending)
+   547→  priority        JobPriority  @default(normal)
+   548→  scheduledAt     DateTime?
+   549→  attempts        Int          @default(0)
+   550→  maxAttempts     Int          @default(3)
+   551→  lastError       String?
+   552→  runAt           DateTime?
+   553→  completedAt     DateTime?
+   554→  createdAt       DateTime     @default(now())
+   555→  updatedAt       DateTime     @updatedAt
+   556→
+   557→  organization Organization @relation(fields: [organizationId], references: [id])
+   558→
+   559→  @@index([organizationId, status, priority, scheduledAt])
+   560→}
+   561→
+   562→model Approval {
+   563→  id                String           @id @default(cuid())
+   564→  workflowRunId     String
+   565→  workflowStepRunId String?
+   566→  organizationId      String
+   567→  requestedAction    String
+   568→  requestedBy        String?
+   569→  approvedBy         String?
+   570→  decision          ApprovalDecision  @default(pending)
+   571→  reason            String?
+   572→  expiresAt         DateTime?
+   573→  decidedAt         DateTime?
+   574→  createdAt          DateTime         @default(now())
+   575→
+   576→  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id])
+   577→  organization  Organization  @relation(fields: [organizationId], references: [id])
+   578→
+   579→  @@index([decision, createdAt])
+   580→}
+   581→
+   582→// ── INTEGRATION TABLES ─────────────────────────────────────────
+   583→
+   584→enum ApiKeyStatus {
+   585→  active
+   586→  revoked
+   587→  expired
+   588→}
+   589→
+   590→enum WebhookStatus {
+   591→  active
+   592→  disabled
+   593→}
+   594→
+   595→enum WebhookDeliveryStatus {
+   596→  pending
+   597→  success
+   598→  failed
+   599→  retrying
+   600→}
+   601→
+   602→enum OAuthProvider {
+   603→  google
+   604→  github
+   605→  stripe
+   606→  custom
+   607→}
+   608→
+   609→enum OAuthConnectionStatus {
+   610→  active
+   611→  expired
+   612→  revoked
+   613→  error
+   614→}
+   615→
+   616→model ApiKey {
+   617→  id              String       @id @default(cuid())
+   618→  organizationId  String
+   619→  name            String
+   620→  prefix          String
+   621→  keyHash         String
+   622→  lastUsedAt      DateTime?
+   623→  expiresAt       DateTime?
+   624→  status          ApiKeyStatus @default(active)
+   625→  createdAt       DateTime     @default(now())
+   626→  updatedAt       DateTime     @updatedAt
+   627→
+   628→  organization Organization @relation(fields: [organizationId], references: [id])
+   629→  webhooks    Webhook[]
+   630→
+   631→  @@index([organizationId, status])
+   632→  @@unique([organizationId, prefix])
+   633→}
+   634→
+   635→model Webhook {
+   636→  id              String       @id @default(cuid())
+   637→  organizationId  String
+   638→  name            String
+   639→  url             String
+   640→  secret          String
+   641→  eventTypes      String
+   642→  apiKeyId        String?
+   643→  status          WebhookStatus @default(active)
+   644→  lastDeliveryAt  DateTime?
+   645→  createdAt       DateTime     @default(now())
+   646→  updatedAt       DateTime     @updatedAt
+   647→
+   648→  organization  Organization  @relation(fields: [organizationId], references: [id])
+   649→  apiKey       ApiKey?        @relation(fields: [apiKeyId], references: [id])
+   650→  deliveries    WebhookDelivery[]
+   651→
+   652→  @@index([organizationId, status])
+   653→}
+   654→
+   655→model WebhookDelivery {
+   656→  id              String                @id @default(cuid())
+   657→  webhookId       String
+   658→  organizationId  String
+   659→  eventId         String?
+   660→  eventType       String
+   661→  payload         String
+   662→  statusCode      Int?
+   663→  response        String?
+   664→  status          WebhookDeliveryStatus @default(pending)
+   665→  attempt         Int                   @default(1)
+   666→  deliveredAt      DateTime?
+   667→  createdAt       DateTime              @default(now())
+   668→
+   669→  webhook      Webhook      @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+   670→  organization  Organization  @relation(fields: [organizationId], references: [id])
+   671→
+   672→  @@index([webhookId, status])
+   673→  @@index([organizationId, createdAt])
+   674→}
+   675→
+   676→model OAuthConnection {
+   677→  id                String                @id @default(cuid())
+   678→  organizationId    String
+   679→  provider          OAuthProvider
+   680→  externalAccountId String?
+   681→  externalAccountName String?
+   682→  accessToken       String
+   683→  refreshToken      String?
+   684→  tokenExpiresAt    DateTime?
+   685→  metadata          String?
+   686→  status            OAuthConnectionStatus @default(active)
+   687→  lastUsedAt        DateTime?
+   688→  createdAt         DateTime              @default(now())
+   689→  updatedAt         DateTime              @updatedAt
+   690→
+   691→  organization Organization @relation(fields: [organizationId], references: [id])
+   692→
+   693→  @@unique([organizationId, provider])
+   694→  @@index([organizationId, status])
+   695→}
+   696→
+   697→// ── BILLING & ENTITLEMENT TABLES ──────────────────────────────
+   698→
+   699→enum PlanBillingCycle {
+   700→  monthly
+   701→  yearly
+   702→  one_time
+   703→}
+   704→
+   705→enum PlanStatus {
+   706→  draft
+   707→  active
+   708→  archived
+   709→  deprecated
+   710→}
+   711→
+   712→enum SubscriptionState {
+   713→  trialing
+   714→  active
+   715→  past_due
+   716→  grace_period
+   717→  paused
+   718→  cancelled
+   719→  expired
+   720→  suspended
+   721→}
+   722→
+   723→enum EntitlementStatus {
+   724→  enabled
+   725→  disabled
+   726→  limited
+   727→  trial
+   728→  expired
+   729→  suspended
+   730→}
+   731→
+   732→enum OverageBehavior {
+   733→  hard_limit
+   734→  soft_limit
+   735→  auto_overage
+   736→  prepaid_credits
+   737→}
+   738→
+   739→enum UsageMeterType {
+   740→  counter
+   741→  gauge
+   742→  unique
+   743→}
+   744→
+   745→enum InvoiceStatus {
+   746→  draft
+   747→  issued
+   748→  paid
+   749→  failed
+   750→  voided
+   751→}
+   752→
+   753→enum InvoiceLineType {
+   754→  base_plan
+   755→  domain
+   756→  module
+   757→  seats
+   758→  usage
+   759→  ai_usage
+   760→  add_on
+   761→  credit
+   762→  discount
+   763→  tax
+   764→}
+   765→
+   766→enum PaymentStatus {
+   767→  pending
+   768→  succeeded
+   769→  failed
+   770→  refunded
+   771→  partially_refunded
+   772→}
+   773→
+   774→model Plan {
+   775→  id            String           @id @default(cuid())
+   776→  name          String
+   777→  slug          String
+   778→  description   String?
+   779→  billingCycle  PlanBillingCycle @default(monthly)
+   780→  basePrice     Float            @default(0)
+   781→  currency      String           @default("USD")
+   782→  status        PlanStatus       @default(draft)
+   783→  isSystem      Boolean          @default(false)
+   784→  metadata      String?
+   785→  createdAt     DateTime         @default(now())
+   786→  updatedAt     DateTime         @updatedAt
+   787→
+   788→  organization    Organization?   @relation(fields: [organizationId], references: [id])
+   789→  organizationId  String?
+   790→  versions        PlanVersion[]
+   791→  subscriptions    Subscription[]
+   792→
+   793→  @@unique([organizationId, slug])
+   794→  @@index([status])
+   795→}
+   796→
+   797→model PlanVersion {
+   798→  id            String   @id @default(cuid())
+   799→  planId        String
+   800→  version       Int
+   801→  name          String?
+   802→  description   String?
+   803→  features      String
+   804→  limits        String?
+   805→  seatAllowance Int      @default(1)
+   806→  aiTokenAllowance Int  @default(0)
+   807→  status        String   @default("active")
+   808→  createdAt     DateTime @default(now())
+   809→
+   810→  plan             Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+   811→  subscriptions    Subscription[]
+   812→
+   813→  @@unique([planId, version])
+   814→}
+   815→
+   816→model Feature {
+   817→  id          String   @id @default(cuid())
+   818→  key         String   @unique
+   819→  name        String
+   820→  description String?
+   821→  category    String?
+   822→  metadata    String?
+   823→  createdAt   DateTime @default(now())
+   824→}
+   825→
+   826→model Subscription {
+   827→  id               String            @id @default(cuid())
+   828→  organizationId   String
+   829→  planId           String?
+   830→  planVersionId    String
+   831→  state            SubscriptionState @default(trialing)
+   832→  trialEndsAt      DateTime?
+   833→  currentPeriodStart DateTime?
+   834→  currentPeriodEnd   DateTime?
+   835→  seatCount        Int               @default(1)
+   836→  canceledAt       DateTime?
+   837→  expiresAt        DateTime?
+   838→  pausedAt         DateTime?
+   839→  metadata         String?
+   840→  createdAt        DateTime          @default(now())
+   841→  updatedAt        DateTime          @updatedAt
+   842→
+   843→  organization Organization @relation(fields: [organizationId], references: [id])
+   844→  plan         Plan?        @relation(fields: [planId], references: [id])
+   845→  planVersion  PlanVersion  @relation(fields: [planVersionId], references: [id])
+   846→  invoices     Invoice[]
+   847→
+   848→  @@unique([organizationId])
+   849→  @@index([state])
+   850→  @@index([currentPeriodEnd])
+   851→}
+   852→
+   853→model UsageMeter {
+   854→  id               String           @id @default(cuid())
+   855→  key              String           @unique
+   856→  name             String
+   857→  description      String?
+   858→  unit             String           @default("count")
+   859→  meterType        UsageMeterType   @default(counter)
+   860→  aggregation       String           @default("sum")
+   861→  resetCycle       String           @default("monthly")
+   862→  overageBehavior  OverageBehavior  @default(hard_limit)
+   863→  defaultLimit     Int?
+   864→  metadata         String?
+   865→  createdAt        DateTime         @default(now())
+   866→}
+   867→
+   868→model UsageRecord {
+   869→  id              String   @id @default(cuid())
+   870→  organizationId  String
+   871→  meterKey        String
+   872→  quantity        Float
+   873→  unit            String   @default("count")
+   874→  source          String?
+   875→  idempotencyKey  String   @unique
+   876→  metadata        String?
+   877→  occurredAt      DateTime @default(now())
+   878→  createdAt       DateTime @default(now())
+   879→
+   880→  organization Organization @relation(fields: [organizationId], references: [id])
+   881→
+   882→  @@index([organizationId, meterKey, occurredAt])
+   883→  @@index([idempotencyKey])
+   884→}
+   885→
+   886→model Invoice {
+   887→  id               String        @id @default(cuid())
+   888→  organizationId   String
+   889→  subscriptionId   String
+   890→  invoiceNumber    String
+   891→  status           InvoiceStatus @default(draft)
+   892→  periodStart      DateTime
+   893→  periodEnd        DateTime
+   894→  currency         String        @default("USD")
+   895→  subtotal         Float         @default(0)
+   896→  discount         Float         @default(0)
+   897→  tax              Float         @default(0)
+   898→  total            Float         @default(0)
+   899→  lineItems        String
+   900→  issuedAt         DateTime?
+   901→  dueAt            DateTime?
+   902→  paidAt           DateTime?
+   903→  createdAt        DateTime      @default(now())
+   904→  updatedAt        DateTime      @updatedAt
+   905→
+   906→  organization Organization @relation(fields: [organizationId], references: [id])
+   907→  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+   908→
+   909→  @@unique([organizationId, invoiceNumber])
+   910→  @@index([subscriptionId])
+   911→  @@index([status])
+   912→}
+   913→
+   914→// ── OBSERVABILITY TABLES ─────────────────────────────────────
+   915→
+   916→enum IncidentSeverity {
+   917→  P1
+   918→  P2
+   919→  P3
+   920→  P4
+   921→}
+   922→
+   923→enum IncidentState {
+   924→  detected
+   925→  acknowledged
+   926→  investigating
+   927→  mitigating
+   928→  monitoring
+   929→  resolved
+   930→}
+   931→
+   932→model Incident {
+   933→  id              String           @id @default(cuid())
+   934→  title           String
+   935→  severity        IncidentSeverity @default(P3)
+   936→  status          IncidentState    @default(detected)
+   937→  service         String
+   938→  owner           String
+   939→  impact          String           @default("")
+   940→  organizationId  String?
+   941→  detectedAt      DateTime         @default(now())
+   942→  startedAt       DateTime?
+   943→  acknowledgedAt  DateTime?
+   944→  resolvedAt      DateTime?
+   945→  commander       String?
+   946→  technicalLead   String?
+   947→  commsOwner      String?
+   948→  sme             String?
+   949→  timeline        String
+   950→  createdAt       DateTime         @default(now())
+   951→  updatedAt       DateTime         @updatedAt
+   952→
+   953→  organization    Organization?    @relation(fields: [organizationId], references: [id])
+   954→
+   955→  @@index([status, severity])
+   956→  @@index([organizationId])
+   957→}
+   958→
+   959→enum AlertSeverity {
+   960→  P1
+   961→  P2
+   962→  P3
+   963→  P4
+   964→}
+   965→
+   966→enum AlertState {
+   967→  firing
+   968→  acknowledged
+   969→  resolved
+   970→  silenced
+   971→}
+   972→
+   973→model AlertRecord {
+   974→  id              String         @id @default(cuid())
+   975→  severity        AlertSeverity  @default(P3)
+   976→  status          AlertState     @default(firing)
+   977→  owner           String
+   978→  name            String
+   979→  description     String
+   980→  what            String
+   981→  why             String
+   982→  who             String
+   983→  action          String
+   984→  fingerprint     String
+   985→  firedAt         DateTime       @default(now())
+   986→  acknowledgedAt  DateTime?
+   987→  resolvedAt      DateTime?
+   988→  silencedUntil   DateTime?
+   989→  organizationId  String?
+   990→  labels          String
+   991→  createdAt       DateTime       @default(now())
+   992→  updatedAt       DateTime       @updatedAt
+   993→
+   994→  @@index([status, severity])
+   995→  @@index([fingerprint])
+   996→}
+   997→
+   998→model SLOTarget {
+   999→  id            String   @id @default(cuid())
+  1000→  name          String   @unique
+  1001→  description   String
+  1002→  target        Float    // e.g. 0.999 = 99.9%
+  1003→  windowDays    Int      @default(30)
+  1004→  metricName    String
+  1005→  labels        String?
+  1006→  createdAt     DateTime @default(now())
+  1007→  updatedAt     DateTime @updatedAt
+  1008→
+  1009→  periods       SLOPeriod[]
+  1010→}
+  1011→
+  1012→model SLOPeriod {
+  1013→  id                    String   @id @default(cuid())
+  1014→  sloTargetId           String
+  1015→  periodStart           DateTime @default(now())
+  1016→  periodEnd             DateTime
+  1017→  totalEvents           Int      @default(0)
+  1018→  goodEvents            Int      @default(0)
+  1019→  badEvents             Int      @default(0)
+  1020→  availability          Float    @default(1)
+  1021→  errorBudgetTotal      Float    @default(0)
+  1022→  errorBudgetConsumed   Float    @default(0)
+  1023→  errorBudgetRemaining  Float    @default(0)
+  1024→  errorBudgetPct        Float    @default(100)
+  1025→  createdAt             DateTime @default(now())
+  1026→  updatedAt             DateTime @updatedAt
+  1027→
+  1028→  sloTarget SLOTarget @relation(fields: [sloTargetId], references: [id], onDelete: Cascade)
+  1029→
+  1030→  @@index([sloTargetId, periodStart])
+  1031→}
+  1032→
+  1033→// ── POULTRY OS DOMAIN TABLES ──────────────────────────────────
+  1034→// First production domain — validates multi-domain architecture
+  1035→// ZERO poultry-specific logic exists inside Core code
+  1036→
+  1037→enum PoultryFarmStatus {
+  1038→  active
+  1039→  inactive
+  1040→  under_maintenance
+  1041→}
+  1042→
+  1043→enum PoultryShedType {
+  1044→  broiler
+  1045→  layer
+  1046→  breeder
+  1047→  mixed
+  1048→}
+  1049→
+  1050→enum PoultryFlockStatus {
+  1051→  placed
+  1052→  growing
+  1053→  laying
+  1054→  molting
+  1055→  depleted
+  1056→  deceased
+  1057→}
+  1058→
+  1059→enum PoultryHealthType {
+  1060→  vaccination
+  1061→  treatment
+  1062→  checkup
+  1063→  emergency
+  1064→}
+  1065→
+  1066→enum PoultryProcurementType {
+  1067→  chick
+  1068→  feed
+  1069→  medicine
+  1070→  equipment
+  1071→  supplies
+  1072→}
+  1073→
+  1074→enum PoultrySaleStatus {
+  1075→  pending
+  1076→  completed
+  1077→  cancelled
+  1078→}
+  1079→
+  1080→model PoultryFarm {
+  1081→  id             String            @id @default(cuid())
+  1082→  organizationId String
+  1083→  name           String
+  1084→  location       String
+  1085→  capacity       Int               @default(0)
+  1086→  status         PoultryFarmStatus @default(active)
+  1087→  contactInfo    String?
+  1088→  latitude       Float?
+  1089→  longitude      Float?
+  1090→  createdAt      DateTime          @default(now())
+  1091→  updatedAt      DateTime          @updatedAt
+  1092→
+  1093→  organization Organization @relation(fields: [organizationId], references: [id])
+  1094→  sheds       PoultryShed[]
+  1095→
+  1096→  @@index([organizationId, status])
+  1097→}
+  1098→
+  1099→model PoultryShed {
+  1100→  id             String         @id @default(cuid())
+  1101→  organizationId String
+  1102→  farmId         String
+  1103→  name           String
+  1104→  shedType       PoultryShedType @default(broiler)
+  1105→  capacity       Int            @default(0)
+  1106→  currentCount   Int            @default(0)
+  1107→  temperature    Float?
+  1108→  humidity       Float?
+  1109→  status         String         @default("active")
+  1110→  createdAt      DateTime       @default(now())
+  1111→  updatedAt      DateTime       @updatedAt
+  1112→
+  1113→  organization Organization @relation(fields: [organizationId], references: [id])
+  1114→  farm         PoultryFarm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  1115→  flocks       PoultryFlock[]
+  1116→
+  1117→  @@index([organizationId, farmId])
+  1118→}
+  1119→
+  1120→model PoultryFlock {
+  1121→  id             String            @id @default(cuid())
+  1122→  organizationId String
+  1123→  shedId         String
+  1124→  breed          String
+  1125→  placementDate  DateTime
+  1126→  quantity       Int
+  1127→  currentCount   Int
+  1128→  status         PoultryFlockStatus @default(placed)
+  1129→  averageWeight  Float?
+  1130→  notes          String?
+  1131→  createdAt      DateTime          @default(now())
+  1132→  updatedAt      DateTime          @updatedAt
+  1133→
+  1134→  organization   Organization   @relation(fields: [organizationId], references: [id])
+  1135→  shed           PoultryShed   @relation(fields: [shedId], references: [id], onDelete: Cascade)
+  1136→  feedRecords    PoultryFeedRecord[]
+  1137→  healthRecords  PoultryHealthRecord[]
+  1138→  mortalityRecords PoultryMortalityRecord[]
+  1139→  productionRecords PoultryProductionRecord[]
+  1140→
+  1141→  @@index([organizationId, shedId])
+  1142→  @@index([organizationId, status])
+  1143→}
+  1144→
+  1145→model PoultryFeedRecord {
+  1146→  id             String   @id @default(cuid())
+  1147→  organizationId String
+  1148→  flockId        String
+  1149→  date           DateTime @default(now())
+  1150→  feedType       String
+  1151→  quantityKg     Float
+  1152→  costUsd        Float   @default(0)
+  1153→  notes          String?
+  1154→  createdAt      DateTime @default(now())
+  1155→
+  1156→  organization Organization @relation(fields: [organizationId], references: [id])
+  1157→  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  1158→
+  1159→  @@index([organizationId, flockId, date])
+  1160→}
+  1161→
+  1162→model PoultryHealthRecord {
+  1163→  id             String             @id @default(cuid())
+  1164→  organizationId String
+  1165→  flockId        String
+  1166→  date           DateTime           @default(now())
+  1167→  type           PoultryHealthType
+  1168→  treatment       String
+  1169→  veterinarian    String?
+  1170→  costUsd        Float              @default(0)
+  1171→  nextDueDate    DateTime?
+  1172→  notes          String?
+  1173→  createdAt      DateTime           @default(now())
+  1174→
+  1175→  organization Organization @relation(fields: [organizationId], references: [id])
+  1176→  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  1177→
+  1178→  @@index([organizationId, flockId, date])
+  1179→}
+  1180→
+  1181→model PoultryMortalityRecord {
+  1182→  id             String   @id @default(cuid())
+  1183→  organizationId String
+  1184→  flockId        String
+  1185→  date           DateTime @default(now())
+  1186→  count          Int
+  1187→  cause          String
+  1188→  notes          String?
+  1189→  createdAt      DateTime @default(now())
+  1190→
+  1191→  organization Organization @relation(fields: [organizationId], references: [id])
+  1192→  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  1193→
+  1194→  @@index([organizationId, flockId, date])
+  1195→}
+  1196→
+  1197→model PoultryProductionRecord {
+  1198→  id             String   @id @default(cuid())
+  1199→  organizationId String
+  1200→  flockId        String
+  1201→  date           DateTime @default(now())
+  1202→  eggsCollected  Int      @default(0)
+  1203→  totalWeightKg  Float   @default(0)
+  1204→  feedConversionRatio Float?
+  1205→  notes          String?
+  1206→  createdAt      DateTime @default(now())
+  1207→
+  1208→  organization Organization @relation(fields: [organizationId], references: [id])
+  1209→  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  1210→
+  1211→  @@index([organizationId, flockId, date])
+  1212→}
+  1213→
+  1214→model PoultryCustomer {
+  1215→  id             String   @id @default(cuid())
+  1216→  organizationId String
+  1217→  name           String
+  1218→  phone          String?
+  1219→  email          String?
+  1220→  address        String?
+  1221→  createdAt      DateTime @default(now())
+  1222→  updatedAt      DateTime @updatedAt
+  1223→
+  1224→  organization Organization @relation(fields: [organizationId], references: [id])
+  1225→  sales       PoultrySale[]
+  1226→
+  1227→  @@unique([organizationId, name])
+  1228→}
+  1229→
+  1230→model PoultrySale {
+  1231→  id             String             @id @default(cuid())
+  1232→  organizationId String
+  1233→  customerId     String?
+  1234→  date           DateTime           @default(now())
+  1235→  items          String
+  1236→  totalAmount    Float              @default(0)
+  1237→  currency       String             @default("USD")
+  1238→  status         PoultrySaleStatus  @default(pending)
+  1239→  notes          String?
+  1240→  createdAt      DateTime           @default(now())
+  1241→  updatedAt      DateTime           @updatedAt
+  1242→
+  1243→  organization Organization @relation(fields: [organizationId], references: [id])
+  1244→  customer    PoultryCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  1245→
+  1246→  @@index([organizationId, date])
+  1247→  @@index([organizationId, status])
+  1248→}
+  1249→
+  1250→model PoultryProcurement {
+  1251→  id             String               @id @default(cuid())
+  1252→  organizationId String
+  1253→  type           PoultryProcurementType
+  1254→  supplier       String
+  1255→  description    String
+  1256→  quantity       Float
+  1257→  unit           String               @default("kg")
+  1258→  unitCostUsd    Float                @default(0)
+  1259→  totalCostUsd   Float                @default(0)
+  1260→  date           DateTime             @default(now())
+  1261→  deliveryDate   DateTime?
+  1262→  status         String               @default("received")
+  1263→  notes          String?
+  1264→  createdAt      DateTime             @default(now())
+  1265→  updatedAt      DateTime             @updatedAt
+  1266→
+  1267→  organization Organization @relation(fields: [organizationId], references: [id])
+  1268→
+  1269→  @@index([organizationId, type, date])
+  1270→}
+  1271→

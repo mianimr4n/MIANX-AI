@@ -13,15 +13,22 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-/** Generate a standard API response envelope */
-export function apiEnvelope<T>(data: T, meta?: string | Record<string, unknown>) {
-  return {
+/** Generate a standard API response as NextResponse */
+import { NextResponse } from 'next/server'
+
+export function apiEnvelope<T>(data: T, meta?: string | Record<string, unknown>, status?: number) {
+  const body = {
     data,
     meta: {
       timestamp: new Date().toISOString(),
       ...(typeof meta === 'string' ? { message: meta } : meta ?? {}),
     },
   }
+  // Error envelope: data is null/undefined with a string message
+  if (typeof meta === 'string' && meta.length > 0 && data == null) {
+    return NextResponse.json(body, { status: status || 404 })
+  }
+  return NextResponse.json(body, status ? { status } : undefined)
 }
 
 /** Parse permission key into parts.

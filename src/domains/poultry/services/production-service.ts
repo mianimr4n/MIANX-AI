@@ -67,7 +67,7 @@ export async function getProductionSummary(organizationId: string, opts?: { floc
   // Enrich with flock breed info
   const flockIds = byFlock.map(f => f.flockId)
   const flocks = flockIds.length > 0
-    ? await db.poultryFlock.findMany({ where: { id: { in: flockIds } }, select: { id: true, breed: true } })
+    ? await db.poultryFlock.findMany({ where: { id: { in: flockIds }, organizationId }, select: { id: true, breed: true } })
     : []
   const flockMap = new Map(flocks.map(f => [f.id, f]))
 

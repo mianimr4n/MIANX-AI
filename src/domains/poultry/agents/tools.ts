@@ -22,9 +22,9 @@ const getFlockMetricsTool: ToolDefinition = {
     if (!flock) return JSON.stringify({ error: 'Flock not found' })
 
     const [mortality, feed, production] = await Promise.all([
-      db.poultryMortalityRecord.aggregate({ where: { flockId }, _sum: { count: true } }),
-      db.poultryFeedRecord.aggregate({ where: { flockId }, _sum: { quantityKg: true, costUsd: true } }),
-      db.poultryProductionRecord.aggregate({ where: { flockId }, _sum: { eggsCollected: true, totalWeightKg: true } }),
+      db.poultryMortalityRecord.aggregate({ where: { flockId, organizationId: ctx.organizationId }, _sum: { count: true } }),
+      db.poultryFeedRecord.aggregate({ where: { flockId, organizationId: ctx.organizationId }, _sum: { quantityKg: true, costUsd: true } }),
+      db.poultryProductionRecord.aggregate({ where: { flockId, organizationId: ctx.organizationId }, _sum: { eggsCollected: true, totalWeightKg: true } }),
     ])
 
     const ageDays = Math.max(0, Math.floor((Date.now() - flock.placementDate.getTime()) / 86400000))
@@ -97,7 +97,7 @@ const getFeedUsageTool: ToolDefinition = {
       orderBy: { date: 'desc' }, take: 20,
     })
     const totals = await db.poultryFeedRecord.aggregate({
-      where: { flockId: String(args.flockId) },
+      where: { flockId: String(args.flockId), organizationId: ctx.organizationId },
       _sum: { quantityKg: true, costUsd: true },
     })
     return JSON.stringify({ records, totalKg: totals._sum.quantityKg ?? 0, totalCost: totals._sum.costUsd ?? 0 })
@@ -120,7 +120,7 @@ const getProductionDataTool: ToolDefinition = {
       orderBy: { date: 'desc' }, take: 20,
     })
     const totals = await db.poultryProductionRecord.aggregate({
-      where: { flockId: String(args.flockId) },
+      where: { flockId: String(args.flockId), organizationId: ctx.organizationId },
       _sum: { eggsCollected: true, totalWeightKg: true },
     })
     return JSON.stringify({ records, totalEggs: totals._sum.eggsCollected ?? 0, totalKg: totals._sum.totalWeightKg ?? 0 })

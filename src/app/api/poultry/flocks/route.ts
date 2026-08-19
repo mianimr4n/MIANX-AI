@@ -2,9 +2,10 @@
 // MIANX.AI — Poultry Flocks API
 // ══════════════════════════════════════════════════════
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/core/authorization/middleware'
 import * as flockService from '@/domains/poultry/services/flock-service'
+import { validateCreateFlock, validateRecordMortality, formatValidationErrors } from '@/domains/poultry/validation'
 
 export const GET = withAuth(async (request, ctx) => {
   const { searchParams } = new URL(request.url)
@@ -27,14 +28,16 @@ export const POST = withAuth(async (request, ctx) => {
 
   // Mortality recording endpoint
   if (body._action === 'record_mortality') {
-    if (!body.flockId || !body.date || !body.count || !body.cause) {
-      return NextResponse.json({ error: 'flockId, date, count, and cause are required' }, { status: 400 })
+    const errors = validateRecordMortality(body)
+    if (errors.length > 0) {
+      return NextResponse.json({ error: formatValidationErrors(errors) }, { status: 400 })
     }
     return flockService.recordMortality(ctx.organizationId, body.flockId, body)
   }
 
-  if (!body.shedId || !body.breed || !body.placementDate || !body.quantity) {
-    return NextResponse.json({ error: 'shedId, breed, placementDate, and quantity are required' }, { status: 400 })
+  const errors = validateCreateFlock(body)
+  if (errors.length > 0) {
+    return NextResponse.json({ error: formatValidationErrors(errors) }, { status: 400 })
   }
   return flockService.createFlock(ctx.organizationId, body)
 }, { permission: 'poultry.flock.create' })
