@@ -14,4 +14,9 @@ export async function register() {
   // are delivered to matching webhook endpoints.
   const { initWebhookBridge } = await import('@/core/integration/webhooks');
   initWebhookBridge();
+
+  // Register Poultry domain AI tools and agents
+  const { registerDomainTools } = await import('@/ai/tools');
+  const { POULTRY_TOOLS } = await import('@/domains/poultry');
+  registerDomainTools(POULTRY_TOOLS);
 }

@@ -38,6 +38,17 @@ async function main() {
   await prisma.aiMessage.deleteMany()
   await prisma.conversation.deleteMany()
   await prisma.agentConfig.deleteMany()
+  // Poultry tables (depend on Organization)
+  await prisma.poultrySale.deleteMany()
+  await prisma.poultryCustomer.deleteMany()
+  await prisma.poultryProcurement.deleteMany()
+  await prisma.poultryProductionRecord.deleteMany()
+  await prisma.poultryMortalityRecord.deleteMany()
+  await prisma.poultryHealthRecord.deleteMany()
+  await prisma.poultryFeedRecord.deleteMany()
+  await prisma.poultryFlock.deleteMany()
+  await prisma.poultryShed.deleteMany()
+  await prisma.poultryFarm.deleteMany()
   // Domain tables
   await prisma.organizationModule.deleteMany()
   await prisma.organizationDomain.deleteMany()
@@ -136,6 +147,38 @@ async function main() {
     prisma.permission.create({ data: { key: 'integration.webhooks.manage', description: 'Create, update, delete, test webhooks' } }),
     prisma.permission.create({ data: { key: 'integration.oauth.view', description: 'View OAuth connections' } }),
     prisma.permission.create({ data: { key: 'integration.oauth.manage', description: 'Connect, disconnect, refresh OAuth' } }),
+    // Poultry permissions (Phase 10)
+    prisma.permission.create({ data: { key: 'poultry.dashboard.view', description: 'View Poultry OS dashboard' } }),
+    prisma.permission.create({ data: { key: 'poultry.report.generate', description: 'Generate Poultry reports' } }),
+    prisma.permission.create({ data: { key: 'poultry.farm.view', description: 'View farms' } }),
+    prisma.permission.create({ data: { key: 'poultry.farm.create', description: 'Create farms' } }),
+    prisma.permission.create({ data: { key: 'poultry.farm.update', description: 'Update farm details' } }),
+    prisma.permission.create({ data: { key: 'poultry.farm.delete', description: 'Archive/delete farms' } }),
+    prisma.permission.create({ data: { key: 'poultry.shed.view', description: 'View sheds' } }),
+    prisma.permission.create({ data: { key: 'poultry.shed.create', description: 'Create sheds' } }),
+    prisma.permission.create({ data: { key: 'poultry.shed.update', description: 'Update shed details' } }),
+    prisma.permission.create({ data: { key: 'poultry.shed.delete', description: 'Archive/delete sheds' } }),
+    prisma.permission.create({ data: { key: 'poultry.flock.view', description: 'View flocks' } }),
+    prisma.permission.create({ data: { key: 'poultry.flock.create', description: 'Create flocks' } }),
+    prisma.permission.create({ data: { key: 'poultry.flock.update', description: 'Update flock details' } }),
+    prisma.permission.create({ data: { key: 'poultry.flock.archive', description: 'Deplete/archive flocks' } }),
+    prisma.permission.create({ data: { key: 'poultry.feed.view', description: 'View feed records' } }),
+    prisma.permission.create({ data: { key: 'poultry.feed.create', description: 'Create feed records' } }),
+    prisma.permission.create({ data: { key: 'poultry.feed.delete', description: 'Delete feed records' } }),
+    prisma.permission.create({ data: { key: 'poultry.health.view', description: 'View health records' } }),
+    prisma.permission.create({ data: { key: 'poultry.health.create', description: 'Create health records' } }),
+    prisma.permission.create({ data: { key: 'poultry.health.delete', description: 'Delete health records' } }),
+    prisma.permission.create({ data: { key: 'poultry.production.view', description: 'View production records' } }),
+    prisma.permission.create({ data: { key: 'poultry.production.create', description: 'Create production records' } }),
+    prisma.permission.create({ data: { key: 'poultry.production.delete', description: 'Delete production records' } }),
+    prisma.permission.create({ data: { key: 'poultry.procurement.view', description: 'View procurement records' } }),
+    prisma.permission.create({ data: { key: 'poultry.procurement.create', description: 'Create procurement records' } }),
+    prisma.permission.create({ data: { key: 'poultry.procurement.update', description: 'Update procurement records' } }),
+    prisma.permission.create({ data: { key: 'poultry.procurement.delete', description: 'Delete procurement records' } }),
+    prisma.permission.create({ data: { key: 'poultry.sale.view', description: 'View sales' } }),
+    prisma.permission.create({ data: { key: 'poultry.sale.create', description: 'Create sales' } }),
+    prisma.permission.create({ data: { key: 'poultry.sale.update', description: 'Update sale records' } }),
+    prisma.permission.create({ data: { key: 'poultry.sale.delete', description: 'Delete sales' } }),
     // Billing permissions
     prisma.permission.create({ data: { key: 'billing.plans.view', description: 'View available plans and features' } }),
     prisma.permission.create({ data: { key: 'billing.plans.manage', description: 'Create and manage plans (admin)' } }),
@@ -190,15 +233,15 @@ async function main() {
   const domains = await Promise.all([
     prisma.domain.create({
       data: {
-        name: 'Poultry OS',
+        name: 'Mianx Poultry OS',
         slug: 'poultry',
         version: '1.0.0',
-        description: 'End-to-end poultry farm management — feed, flock, health, sales',
+        description: 'Complete poultry farm management: farms, sheds, flocks, feed, health, production, procurement, and sales',
         status: 'available',
         manifest: JSON.stringify({
           schema: 'mianx-domain/v1',
-          domain: { name: 'Poultry OS', slug: 'poultry', version: '1.0.0' },
-          moduleCount: 4, permissionCount: 12,
+          domain: { name: 'Mianx Poultry OS', slug: 'poultry', version: '1.0.0' },
+          moduleCount: 8, permissionCount: 30,
         }),
       },
     }),
@@ -235,10 +278,14 @@ async function main() {
 
   // ── Domain Modules ──
   const poultryModules = await Promise.all([
-    prisma.module.create({ data: { domainId: domains[0].id, name: 'Flock Management', slug: 'flock-management', version: '1.0.0', description: 'Track flocks, batches, mortality, weights', status: 'available' } }),
-    prisma.module.create({ data: { domainId: domains[0].id, name: 'Feed Management', slug: 'feed-management', version: '1.0.0', description: 'Feed formulations, consumption tracking, cost analysis', status: 'available' } }),
-    prisma.module.create({ data: { domainId: domains[0].id, name: 'Health & Vaccination', slug: 'health-vaccination', version: '1.0.0', description: 'Vaccination schedules, disease tracking, vet records', status: 'available' } }),
-    prisma.module.create({ data: { domainId: domains[0].id, name: 'Sales & Procurement', slug: 'sales-procurement', version: '1.0.0', description: 'Customer orders, procurement, pricing, invoicing', status: 'draft' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Farm Management', slug: 'farm', version: '1.0.0', description: 'Manage farm locations, capacity, and operational status', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Shed Management', slug: 'shed', version: '1.0.0', description: 'Track shed types, capacity, environmental conditions, and occupancy', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Flock Management', slug: 'flock', version: '1.0.0', description: 'Manage flock lifecycle: placement, growth, mortality, weight tracking', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Feed Tracking', slug: 'feed', version: '1.0.0', description: 'Record feed consumption, conversion ratios, stock levels, and costs', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Health Records', slug: 'health', version: '1.0.0', description: 'Track vaccinations, treatments, mortality causes, and health alerts', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Production Metrics', slug: 'production', version: '1.0.0', description: 'Monitor egg production, body weight, feed conversion, and growth curves', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Procurement', slug: 'procurement', version: '1.0.0', description: 'Manage chick procurement, feed purchases, medicine, and equipment', status: 'available' } }),
+    prisma.module.create({ data: { domainId: domains[0].id, name: 'Sales', slug: 'sales', version: '1.0.0', description: 'Record sales transactions, customer management, and revenue tracking', status: 'available' } }),
   ])
 
   const restaurantModules = await Promise.all([
@@ -275,9 +322,8 @@ async function main() {
 
   // ── Activate modules for organizations ──
   const orgModules = await Promise.all([
-    // Poultry Farm Co: Flock + Feed modules
-    prisma.organizationModule.create({ data: { organizationId: orgs[0].id, moduleId: poultryModules[0].id, status: 'active', activatedAt: new Date(), configuration: JSON.stringify({ batch_tracking: true }) } }),
-    prisma.organizationModule.create({ data: { organizationId: orgs[0].id, moduleId: poultryModules[1].id, status: 'active', activatedAt: new Date() } }),
+    // Poultry Farm Co: all 8 Poultry modules
+    ...poultryModules.map(m => prisma.organizationModule.create({ data: { organizationId: orgs[0].id, moduleId: m.id, status: 'active', activatedAt: new Date() } })),
     // Fresh Restaurants: Menu + Orders modules
     prisma.organizationModule.create({ data: { organizationId: orgs[1].id, moduleId: restaurantModules[0].id, status: 'active', activatedAt: new Date() } }),
     prisma.organizationModule.create({ data: { organizationId: orgs[1].id, moduleId: restaurantModules[1].id, status: 'active', activatedAt: new Date() } }),
@@ -670,6 +716,90 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
     },
   })
   console.log('  ✓ Created 1 sample invoice')
+
+  // ══════════════════════════════════════════════════════════════
+  // POULTRY BUSINESS DATA (Phase 10)
+  // ══════════════════════════════════════════════════════════════
+
+  const poultryOrgId = orgs[0].id
+
+  // ── Farms ──
+  const farms = await Promise.all([
+    prisma.poultryFarm.create({ data: { organizationId: poultryOrgId, name: 'Main Farm', location: 'Lahore, Punjab', capacity: 50000, status: 'active', contactInfo: '+92-300-1234567', latitude: 31.5204, longitude: 74.3587 } }),
+    prisma.poultryFarm.create({ data: { organizationId: poultryOrgId, name: 'North Farm', location: 'Rawalpindi, Punjab', capacity: 30000, status: 'active', contactInfo: '+92-301-7654321' } }),
+  ])
+
+  // ── Sheds ──
+  const sheds = await Promise.all([
+    prisma.poultryShed.create({ data: { organizationId: poultryOrgId, farmId: farms[0].id, name: 'Shed A1', shedType: 'broiler', capacity: 10000, currentCount: 8500, temperature: 24.5, humidity: 65 } }),
+    prisma.poultryShed.create({ data: { organizationId: poultryOrgId, farmId: farms[0].id, name: 'Shed A2', shedType: 'broiler', capacity: 10000, currentCount: 9200, temperature: 25.0, humidity: 60 } }),
+    prisma.poultryShed.create({ data: { organizationId: poultryOrgId, farmId: farms[0].id, name: 'Shed L1', shedType: 'layer', capacity: 8000, currentCount: 7500, temperature: 23.0, humidity: 70 } }),
+    prisma.poultryShed.create({ data: { organizationId: poultryOrgId, farmId: farms[1].id, name: 'Shed B1', shedType: 'broiler', capacity: 10000, currentCount: 0, temperature: null, humidity: null, status: 'inactive' } }),
+  ])
+
+  // ── Flocks ──
+  const flocks = await Promise.all([
+    prisma.poultryFlock.create({ data: { organizationId: poultryOrgId, shedId: sheds[0].id, breed: 'Cobb 500', placementDate: new Date(Date.now() - 28 * 86400000), quantity: 10000, currentCount: 8500, status: 'growing', averageWeight: 1.85 } }),
+    prisma.poultryFlock.create({ data: { organizationId: poultryOrgId, shedId: sheds[1].id, breed: 'Ross 308', placementDate: new Date(Date.now() - 21 * 86400000), quantity: 10000, currentCount: 9200, status: 'growing', averageWeight: 1.35 } }),
+    prisma.poultryFlock.create({ data: { organizationId: poultryOrgId, shedId: sheds[2].id, breed: 'Hy-Line Brown', placementDate: new Date(Date.now() - 140 * 86400000), quantity: 8000, currentCount: 7500, status: 'laying', averageWeight: 2.1 } }),
+  ])
+
+  // ── Feed Records ──
+  const today = new Date()
+  for (let d = 0; d < 7; d++) {
+    const date = new Date(today.getTime() - d * 86400000)
+    await Promise.all([
+      prisma.poultryFeedRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[0].id, date, feedType: 'Broiler Starter', quantityKg: 420, costUsd: 210 } }),
+      prisma.poultryFeedRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[1].id, date, feedType: 'Broiler Grower', quantityKg: 380, costUsd: 190 } }),
+      prisma.poultryFeedRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[2].id, date, feedType: 'Layer Feed', quantityKg: 300, costUsd: 180 } }),
+    ])
+  }
+
+  // ── Health Records ──
+  await Promise.all([
+    prisma.poultryHealthRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[0].id, date: new Date(Date.now() - 27 * 86400000), type: 'vaccination', treatment: 'Newcastle Disease (Lasota)', veterinarian: 'Dr. Hassan', costUsd: 45, nextDueDate: new Date(Date.now() + 14 * 86400000) } }),
+    prisma.poultryHealthRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[0].id, date: new Date(Date.now() - 14 * 86400000), type: 'vaccination', treatment: 'Infectious Bronchitis (H120)', veterinarian: 'Dr. Hassan', costUsd: 40, nextDueDate: new Date(Date.now() + 7 * 86400000) } }),
+    prisma.poultryHealthRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[1].id, date: new Date(Date.now() - 5 * 86400000), type: 'treatment', treatment: 'Antibiotics for respiratory infection', veterinarian: 'Dr. Ahmed', costUsd: 85, notes: '5-day course, responded well' } }),
+    prisma.poultryHealthRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[2].id, date: new Date(Date.now() - 10 * 86400000), type: 'checkup', treatment: 'Routine flock inspection', veterinarian: 'Dr. Hassan', costUsd: 20 } }),
+  ])
+
+  // ── Mortality Records ──
+  await Promise.all([
+    prisma.poultryMortalityRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[0].id, date: new Date(Date.now() - 3 * 86400000), count: 15, cause: 'Heat stress', notes: 'Temperature spike in shed' } }),
+    prisma.poultryMortalityRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[0].id, date: new Date(Date.now() - 10 * 86400000), count: 8, cause: 'Unknown / Sudden Death Syndrome' } }),
+    prisma.poultryMortalityRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[1].id, date: new Date(Date.now() - 4 * 86400000), count: 25, cause: 'Respiratory infection' } }),
+    prisma.poultryMortalityRecord.create({ data: { organizationId: poultryOrgId, flockId: flocks[2].id, date: new Date(Date.now() - 7 * 86400000), count: 3, cause: 'Age-related culling' } }),
+  ])
+
+  // ── Production Records (for layer flock) ──
+  for (let d = 0; d < 14; d++) {
+    const date = new Date(today.getTime() - d * 86400000)
+    await prisma.poultryProductionRecord.create({
+      data: { organizationId: poultryOrgId, flockId: flocks[2].id, date, eggsCollected: 6200 + Math.floor(Math.random() * 400 - 200), totalWeightKg: 390 + Math.floor(Math.random() * 30 - 15), feedConversionRatio: 2.1 + Math.random() * 0.3 },
+    })
+  }
+
+  // ── Customers ──
+  const customers = await Promise.all([
+    prisma.poultryCustomer.create({ data: { organizationId: poultryOrgId, name: 'Metro Cash & Carry', phone: '+92-42-35761234', email: 'procurement@metro.pk', address: 'Lahore' } }),
+    prisma.poultryCustomer.create({ data: { organizationId: poultryOrgId, name: 'Al-Fatah Store', phone: '+92-42-35876543', address: 'Gulberg, Lahore' } }),
+    prisma.poultryCustomer.create({ data: { organizationId: poultryOrgId, name: 'Hashim Brothers', phone: '+92-300-9876543', address: 'Multan Road, Lahore' } }),
+  ])
+
+  // ── Sales ──
+  await Promise.all([
+    prisma.poultrySale.create({ data: { organizationId: poultryOrgId, customerId: customers[0].id, date: new Date(Date.now() - 2 * 86400000), items: JSON.stringify([{ product: 'Live Broiler', qty_kg: 500, rate_per_kg: 450 }]), totalAmount: 225000, currency: 'PKR', status: 'completed' } }),
+    prisma.poultrySale.create({ data: { organizationId: poultryOrgId, customerId: customers[1].id, date: new Date(Date.now() - 5 * 86400000), items: JSON.stringify([{ product: 'Eggs (Tray)', qty: 100, rate_per_tray: 850 }]), totalAmount: 85000, currency: 'PKR', status: 'completed' } }),
+    prisma.poultrySale.create({ data: { organizationId: poultryOrgId, customerId: customers[2].id, date: new Date(Date.now() - 1 * 86400000), items: JSON.stringify([{ product: 'Live Broiler', qty_kg: 300, rate_per_kg: 460 }, { product: 'Eggs (Tray)', qty: 50, rate_per_tray: 850 }]), totalAmount: 178500, currency: 'PKR', status: 'completed' } }),
+  ])
+
+  // ── Procurement ──
+  await Promise.all([
+    prisma.poultryProcurement.create({ data: { organizationId: poultryOrgId, type: 'feed', supplier: 'Pak Feeds Ltd', description: 'Broiler Starter Feed', quantity: 5000, unit: 'kg', unitCostUsd: 0.5, totalCostUsd: 2500, date: new Date(Date.now() - 10 * 86400000), status: 'received' } }),
+    prisma.poultryProcurement.create({ data: { organizationId: poultryOrgId, type: 'medicine', supplier: 'VetPharma', description: 'Antibiotics (Enrofloxacin)', quantity: 50, unit: 'packs', unitCostUsd: 8, totalCostUsd: 400, date: new Date(Date.now() - 6 * 86400000), status: 'received' } }),
+    prisma.poultryProcurement.create({ data: { organizationId: poultryOrgId, type: 'chick', supplier: 'Hub Hatchery', description: 'Cobb 500 day-old chicks', quantity: 10000, unit: 'birds', unitCostUsd: 0.4, totalCostUsd: 4000, date: new Date(Date.now() - 28 * 86400000), deliveryDate: new Date(Date.now() - 28 * 86400000), status: 'received' } }),
+  ])
+  console.log(`  ✓ Created Poultry business data: ${farms.length} farms, ${sheds.length} sheds, ${flocks.length} flocks, ${customers.length} customers`)
 
   console.log('\n✅ Seed complete! Summary:')
   console.log(`   Organizations: ${orgs.length}`)

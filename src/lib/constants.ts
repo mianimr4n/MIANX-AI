@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 export const APP_NAME = 'Mianx.ai'
-export const APP_VERSION = '0.9.0'
+export const APP_VERSION = '1.0.0'
 export const APP_DESCRIPTION = 'Multi-Tenant, Multi-Domain, AI-Native Business Operating System'
 
 export const PHASES = [
@@ -17,7 +17,7 @@ export const PHASES = [
   { id: 7, name: 'Billing and Entitlements', duration: 'Week 16-18', status: 'completed' as const, focus: 'Plans, subscriptions, usage' },
   { id: 8, name: 'Frontend Platform', duration: 'Week 18-22', status: 'completed' as const, focus: 'App shell, design system' },
   { id: 9, name: 'Observability and Ops', duration: 'Week 22-24', status: 'completed' as const, focus: 'Logging, monitoring, alerts' },
-  { id: 10, name: 'Poultry OS Domain', duration: 'Week 24-30', status: 'pending' as const, focus: 'Industry modules, agents' },
+  { id: 10, name: 'Poultry OS Domain', duration: 'Week 24-30', status: 'completed' as const, focus: 'Industry modules, agents' },
   { id: 11, name: 'Production Readiness', duration: 'Week 30-32', status: 'pending' as const, focus: 'Security, testing, deploy' },
 ] as const
 
@@ -57,6 +57,16 @@ export const INTEGRATION_TABLES = [
 export const BILLING_TABLES = [
   'plans', 'plan_versions', 'features', 'subscriptions',
   'usage_meters', 'usage_records', 'invoices',
+] as const
+
+export const OBSERVABILITY_TABLES = [
+  'incidents', 'alert_records', 'slo_targets', 'slo_periods',
+] as const
+
+export const POULTRY_TABLES = [
+  'poultry_farms', 'poultry_sheds', 'poultry_flocks',
+  'poultry_feed_records', 'poultry_health_records', 'poultry_mortality_records',
+  'poultry_production_records', 'poultry_customers', 'poultry_sales', 'poultry_procurements',
 ] as const
 
 export const SYSTEM_ROLES = ['owner', 'admin', 'member', 'viewer'] as const

@@ -295,3 +295,61 @@ Stage Summary:
 - Telemetry redaction: sensitive field detection, pattern matching for tokens/keys/credit cards/SSN, header redaction
 - Command Center: platform overview, tenant view, domain view
 - Enhanced health: liveness/readiness separation, dependency checks (DB, jobs, workflows, P1 incidents)
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Phase 10 — Poultry OS Domain (complete build)
+
+Work Log:
+- Audited existing codebase: 10 Poultry Prisma models already existed in schema, zero domain code
+- Read Phase 10 roadmap definition (13 tasks), Domain Engine spec, and AI Agent spec
+- Created src/domains/poultry/ module with 12 files:
+  - manifest.ts: Full DomainManifest with 8 modules, 30 permissions, 4 config fields, route declarations
+  - index.ts: Barrel export
+  - services/farm-service.ts: CRUD + stats (farms, sheds, bird counts)
+  - services/shed-service.ts: CRUD with farm FK validation, environmental conditions
+  - services/flock-service.ts: CRUD + lifecycle management, mortality recording with auto-depletion, flock metrics (age, mortality rate, FCR, production totals)
+  - services/feed-service.ts: CRUD + summary (by feed type, avg cost per kg)
+  - services/health-service.ts: Health records CRUD, mortality records, health summary (active flocks, mortality causes, upcoming vaccinations)
+  - services/production-service.ts: Production CRUD + summary (by flock, FCR averages)
+  - services/procurement-service.ts: CRUD + summary (by type)
+  - services/sales-service.ts: Customer CRUD, sale CRUD + summary (revenue, pending, customer count)
+  - agents/tools.ts: 8 Poultry AI tools (list_farms, list_flocks, get_flock_metrics, get_mortality_trends, get_health_records, get_feed_usage, get_production_data, get_sales_data)
+  - agents/registry.ts: 4 Poultry AI agents (Flock Manager, Feed Optimizer, Health Monitor, Sales Analyst)
+- Created 16 Poultry API routes:
+  - /api/poultry/farms (GET, POST) + /api/poultry/farms/[id] (GET, PATCH, DELETE)
+  - /api/poultry/sheds (GET, POST) + /api/poultry/sheds/[id] (GET, PATCH, DELETE)
+  - /api/poultry/flocks (GET, POST) + /api/poultry/flocks/[id] (GET, PATCH)
+  - /api/poultry/feed (GET, POST) + /api/poultry/feed/[id] (DELETE)
+  - /api/poultry/health (GET, POST) + /api/poultry/health/[id] (DELETE)
+  - /api/poultry/production (GET, POST) + /api/poultry/production/[id] (DELETE)
+  - /api/poultry/procurement (GET, POST) + /api/poultry/procurement/[id] (PATCH, DELETE)
+  - /api/poultry/sales (GET, POST) + /api/poultry/sales/[id] (PATCH, DELETE)
+  - /api/poultry/customers (GET, POST)
+  - /api/poultry/dashboard (GET) — aggregate stats for Poultry OS dashboard
+- All routes use withAuth/withAuthParams middleware with poultry.* permission guards
+- Extended AI tool registry with domain tool registration (registerDomainTools, rebuildToolMap)
+- Updated instrumentation.ts to register Poultry tools at server startup
+- Updated seed.ts:
+  - Added 10 Poultry table deleteMany in correct FK order
+  - Added 30 poultry.* permissions (farm/shed/flock/feed/health/production/procurement/sale CRUD + dashboard + report)
+  - Updated Poultry domain manifest (8 modules, 30 permissions)
+  - Updated Poultry modules from 4 to 8 (farm, shed, flock, feed, health, production, procurement, sales)
+  - All 8 Poultry modules activated for Poultry Farm Co
+  - Added rich business data: 2 farms, 4 sheds, 3 flocks, 21 feed records, 4 health records, 4 mortality records, 14 production records, 3 customers, 3 sales, 3 procurements
+- Created test suite: POST /api/test/poultry (22 tests: table existence, CRUD cascade, seed data, permissions, domain registration, AI agents/tools, org isolation, metrics)
+- Updated constants: POULTRY_TABLES, APP_VERSION 1.0.0, Phase 10 completed
+- Clean build verified: 0 errors, 16 new Poultry API routes
+- Clean seed verified: 75 permissions, 15 modules, 8 org-modules for Poultry
+
+Stage Summary:
+- Phase 10 built from scratch: 12 new files in src/domains/poultry/, 16 API routes, 4 AI agents, 8 AI tools
+- 8 modules: Farm, Shed, Flock, Feed, Health, Production, Procurement, Sales
+- 30 poultry.* permissions with proper RBAC enforcement on every endpoint
+- 4 AI agents with scoped tools and permission-gated execution
+- Domain tool registration pattern established (extensible for future domains)
+- Rich seed data: realistic Pakistani poultry farm with 2 farms, 3 breeds, multi-currency sales
+- Architecture validation: zero Poultry-specific code in Core (all in src/domains/poultry/)
+- Dashboard API endpoint for aggregate Poultry stats
+- Multi-domain architecture proven: Poultry domain plugs cleanly into Core

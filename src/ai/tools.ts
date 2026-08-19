@@ -115,11 +115,31 @@ const ALL_TOOLS: ToolDefinition[] = [
   searchAuditLogsTool,
 ]
 
+/** Domain tools registered after module load */
+const domainTools: ToolDefinition[] = []
+
+/** Register domain-specific tools (called by domain modules) */
+export function registerDomainTools(tools: ToolDefinition[]) {
+  domainTools.push(...tools)
+}
+
+/** Get all registered tools (core + domain) */
+export function getAllTools(): ToolDefinition[] {
+  return [...ALL_TOOLS, ...domainTools]
+}
+
 const toolMap = new Map(ALL_TOOLS.map(t => [t.name, t]))
+
+/** Rebuild the tool map (call after registering domain tools) */
+export function rebuildToolMap() {
+  for (const t of domainTools) {
+    toolMap.set(t.name, t)
+  }
+}
 
 /** Get all registered tool definitions */
 export function listTools(): ToolDefinition[] {
-  return [...ALL_TOOLS]
+  return getAllTools()
 }
 
 /** Get a specific tool by name */
