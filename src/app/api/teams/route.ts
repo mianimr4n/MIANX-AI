@@ -14,7 +14,8 @@ export const dynamic = 'force-dynamic'
 // GET /api/teams — List organization's teams with member counts
 export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
   const { searchParams } = request.nextUrl
-  const limit = parseInt(searchParams.get('limit') || '20')
+  const rawLimit = parseInt(searchParams.get('limit') || '20', 10)
+  const limit = Math.min(Math.max(rawLimit, 1), 100)
 
   const teams = await db.team.findMany({
     where: { organizationId: ctx.organizationId },

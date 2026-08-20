@@ -64,12 +64,16 @@ export const POST = withAuth(async (request, ctx) => {
       },
     }) as unknown as NextResponse
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'AI chat failed'
     // If no providers configured, return a helpful message
+    const msg = error instanceof Error ? error.message : 'AI chat failed'
     if (msg.includes('No AI providers configured')) {
       return NextResponse.json(apiEnvelope(null, 'No AI providers configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY in .env'), { status: 503 })
     }
     console.error('[POST /api/ai/chat]', error)
+    // Phase 13: Do not leak error messages in production
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(apiEnvelope(null, 'AI chat failed. Please try again.'), { status: 500 })
+    }
     return NextResponse.json(apiEnvelope(null, msg), { status: 500 })
   }
 }, { permission: 'ai.chat' })

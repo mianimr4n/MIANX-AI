@@ -10,6 +10,7 @@ import { createWorkflow, listWorkflows } from '@/core/automation'
 import type { CreateWorkflowData, TriggerConfig, WorkflowStep, WorkflowCondition, RetryPolicy } from '@/core/automation'
 import { db } from '@/lib/db'
 import { apiEnvelope } from '@/core/tenancy/utils'
+import { parsePagination, prismaPagination, paginateResult } from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,14 +30,28 @@ export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
     )
   }
 
+  const pagination = parsePagination(request.nextUrl.searchParams)
+  const { skip, take } = prismaPagination(pagination)
+
   let workflows
+  let total: number
+
   if (rawStatus) {
-    workflows = await db.workflow.findMany({
-      where: { organizationId: ctx.organizationId, status: rawStatus as WorkflowStatusFilter },
-      orderBy: { createdAt: 'desc' },
-    })
+    const [rows, count] = await Promise.all([
+      db.workflow.findMany({
+        where: { organizationId: ctx.organizationId, status: rawStatus as WorkflowStatusFilter },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      db.workflow.count({ where: { organizationId: ctx.organizationId, status: rawStatus as WorkflowStatusFilter } }),
+    ])
+    workflows = rows
+    total = count
   } else {
-    workflows = await listWorkflows(ctx.organizationId)
+    const all = await listWorkflows(ctx.organizationId)
+    total = all.length
+    workflows = all.slice(skip, skip + take)
   }
 
   // Parse JSON fields for each workflow
@@ -48,7 +63,7 @@ export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
     retryPolicy: wf.retryPolicy ? JSON.parse(wf.retryPolicy) : null,
   }))
 
-  return NextResponse.json(apiEnvelope(parsed))
+  return NextResponse.json(paginateResult(parsed, total, pagination))
 }, { anyPermission: ['automation.workflows.view', 'automation.workflows.manage'] })
 
 // POST /api/workflows — Create a new workflow

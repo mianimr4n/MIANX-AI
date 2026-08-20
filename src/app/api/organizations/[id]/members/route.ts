@@ -1,11 +1,13 @@
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // MIANX.AI — Organization Members API
 // GET   /api/organizations/:id/members  — List members
 // POST  /api/organizations/:id/members  — Add member
-// ══════════════════════════════════════════════════════════════════
+// Phase 13: Added pagination, auth, safe error responses
+// ══════════════════════════════════════════════════════
 
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { parsePagination, prismaPagination, paginateResult } from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,16 +18,26 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const members = await db.organizationMembership.findMany({
-      where: { organizationId: id },
-      include: {
-        profile: true,
-        roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-    return NextResponse.json({ data: members })
+    const pagination = parsePagination(request.nextUrl.searchParams)
+    const { skip, take } = prismaPagination(pagination)
+
+    const [members, total] = await Promise.all([
+      db.organizationMembership.findMany({
+        where: { organizationId: id },
+        skip,
+        take,
+        include: {
+          profile: true,
+          roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.organizationMembership.count({ where: { organizationId: id } }),
+    ])
+
+    return NextResponse.json(paginateResult(members, total, pagination))
   } catch (error) {
+    console.error('[GET /api/organizations/:id/members]', error)
     return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 })
   }
 }
@@ -89,6 +101,7 @@ export async function POST(
 
     return NextResponse.json({ data: membership }, { status: 201 })
   } catch (error) {
+    console.error('[POST /api/organizations/:id/members]', error)
     return NextResponse.json({ error: 'Failed to add member' }, { status: 500 })
   }
 }

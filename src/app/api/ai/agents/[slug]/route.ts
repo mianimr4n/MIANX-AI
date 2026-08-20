@@ -34,12 +34,11 @@ export const PATCH = withAuthParams(async (
     const updated = await updateAgentConfig(ctx.organizationId, slug, body as UpdateAgentConfigData)
     return NextResponse.json(apiEnvelope(updated, 'Agent updated'))
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to update agent'
-    if (msg.includes('not found')) {
-      return NextResponse.json(apiEnvelope(null, msg), { status: 404 })
-    }
     console.error('[PATCH /api/ai/agents/:slug]', error)
-    return NextResponse.json(apiEnvelope(null, msg), { status: 400 })
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json(apiEnvelope(null, 'Agent not found'), { status: 404 })
+    }
+    return NextResponse.json(apiEnvelope(null, 'Failed to update agent'), { status: 400 })
   }
 }, { permission: 'ai.agents.manage' })
 
@@ -53,11 +52,10 @@ export const DELETE = withAuthParams(async (
     const deleted = await deleteAgentConfig(ctx.organizationId, slug)
     return NextResponse.json(apiEnvelope(deleted, 'Agent archived'))
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to delete agent'
-    if (msg.includes('not found')) {
-      return NextResponse.json(apiEnvelope(null, msg), { status: 404 })
-    }
     console.error('[DELETE /api/ai/agents/:slug]', error)
-    return NextResponse.json(apiEnvelope(null, msg), { status: 400 })
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json(apiEnvelope(null, 'Agent not found'), { status: 404 })
+    }
+    return NextResponse.json(apiEnvelope(null, 'Failed to delete agent'), { status: 400 })
   }
 }, { permission: 'ai.agents.manage' })

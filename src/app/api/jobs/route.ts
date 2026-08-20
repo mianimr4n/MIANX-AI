@@ -10,6 +10,7 @@ import { enqueueJob, listJobs } from '@/core/automation'
 import type { EnqueueJobData } from '@/core/automation'
 import { db } from '@/lib/db'
 import { apiEnvelope } from '@/core/tenancy/utils'
+import { parsePagination, prismaPagination, paginateResult } from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,19 +34,32 @@ export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
     )
   }
 
+  const pagination = parsePagination(request.nextUrl.searchParams)
+  const { skip, take } = prismaPagination(pagination)
+
   // Use core listJobs when only status filter, otherwise use db directly for type filter
-  let jobs
+  let jobs: Awaited<ReturnType<typeof listJobs>>
+  let total: number
+
   if (rawStatus && !type) {
     jobs = await listJobs(ctx.organizationId, rawStatus as JobStatusFilter)
+    total = jobs.length
+    jobs = jobs.slice(skip, skip + take)
   } else {
     const where: Record<string, unknown> = { organizationId: ctx.organizationId }
     if (rawStatus) where.status = rawStatus as JobStatusFilter
     if (type) where.type = type
 
-    const rows = await db.job.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    })
+    const [rows, count] = await Promise.all([
+      db.job.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      db.job.count({ where }),
+    ])
+    total = count
 
     const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 }
     jobs = rows.sort((a, b) => {
@@ -63,7 +77,7 @@ export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
     payload: job.payload ? JSON.parse(job.payload) : null,
   }))
 
-  return NextResponse.json(apiEnvelope(parsed))
+  return NextResponse.json(paginateResult(parsed, total, pagination))
 }, { anyPermission: ['automation.jobs.view', 'automation.jobs.manage'] })
 
 // POST /api/jobs — Enqueue a new job

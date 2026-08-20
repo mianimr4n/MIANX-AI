@@ -3,6 +3,7 @@
 // Higher-order function to wrap API route handlers with auth + RBAC
 // Fail-closed: any missing auth info = automatic denial
 // Phase 11: requestId propagation, production-safe error responses
+// Phase 13: Refactored rate limiting to use lib/rate-limit.ts
 // ══════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,6 +12,7 @@ import type { AuthContext } from './auth-context'
 export type { AuthContext }
 import { requirePermission, requireAnyPermission, requireAdmin, requireRole } from './permissions'
 import { withTenant } from '@/core/tenancy'
+import { rateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 
 /** Handler for routes WITHOUT dynamic params (e.g., /api/teams) */
 export type AuthenticatedHandler = (
@@ -45,42 +47,6 @@ function getRequestId(request: NextRequest): string {
   return request.headers.get('x-request-id') ||
     (typeof crypto !== 'undefined' && crypto.randomUUID?.() ? crypto.randomUUID() :
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`)
-}
-
-/** Phase 11: Check rate limits (in-memory, per IP+endpoint) */
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(request: NextRequest, maxRequests: number, windowMs: number): boolean {
-  // Skip rate limiting in development
-  if (process.env.NODE_ENV !== 'production') return true
-
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
-  const path = new URL(request.url).pathname
-  const key = `${ip}:${path}`
-  const now = Date.now()
-
-  const entry = rateLimitStore.get(key)
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs })
-    return true
-  }
-
-  if (entry.count >= maxRequests) {
-    return false
-  }
-
-  entry.count++
-  return true
-}
-
-// Periodic cleanup of stale rate limit entries
-if (typeof globalThis !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now()
-    for (const [key, entry] of rateLimitStore) {
-      if (now > entry.resetAt) rateLimitStore.delete(key)
-    }
-  }, 60000).unref()
 }
 
 async function resolveAndAuthorize(request: NextRequest, options: WithAuthOptions): Promise<AuthContext | NextResponse> {
@@ -239,18 +205,32 @@ export function withAuthContext(
   return withAuth(handler, {})
 }
 
-/** Phase 11: Rate-limited version — apply rate limit before auth */
+/**
+ * Phase 13: Rate-limited version — apply rate limit before auth.
+ * Uses lib/rate-limit.ts abstraction (in-memory by default, Redis-ready).
+ */
 export function withRateLimit(
   maxRequests: number,
   windowMs: number
 ) {
   return <T extends AuthenticatedHandler | AuthenticatedHandlerWithParams>(handler: T): T => {
     return (async (request: NextRequest, ...args: unknown[]) => {
-      if (!checkRateLimit(request, maxRequests, windowMs)) {
+      const key = buildRateLimitKey(request)
+      const result = await rateLimit(key, maxRequests, windowMs)
+
+      if (!result.allowed) {
         const requestId = getRequestId(request)
         return NextResponse.json(
           { error: 'Too many requests. Please try again later.', requestId },
-          { status: 429, headers: { 'X-Request-Id': requestId, 'Retry-After': String(Math.ceil(windowMs / 1000)) } }
+          {
+            status: 429,
+            headers: {
+              'X-Request-Id': requestId,
+              'Retry-After': String(Math.ceil(windowMs / 1000)),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(Math.ceil(result.resetAt / 1000)),
+            },
+          }
         )
       }
       return (handler as (req: NextRequest, ...a: unknown[]) => Promise<NextResponse>)(request, ...args)

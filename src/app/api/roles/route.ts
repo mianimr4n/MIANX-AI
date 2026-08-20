@@ -13,9 +13,11 @@ import { slugify } from '@/core/tenancy/utils'
 export const dynamic = 'force-dynamic'
 
 // GET /api/roles — List org roles with their permissions
+// Note: Roles table is small per-organization. Safety cap of 200 prevents abuse.
 export const GET = withAuth(async (_request: NextRequest, ctx: AuthContext) => {
   const roles = await db.role.findMany({
     where: { organizationId: ctx.organizationId },
+    take: 200,
     include: {
       permissions: {
         include: { permission: { select: { key: true, description: true } } },

@@ -8,24 +8,44 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/core/authorization'
 import { db } from '@/lib/db'
 import { apiEnvelope } from '@/core/tenancy/utils'
+import { parsePagination, prismaPagination } from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/invitations — List pending invitations
-export const GET = withAuth(async (_request: NextRequest, ctx: AuthContext) => {
-  const invitations = await db.organizationMembership.findMany({
-    where: {
-      organizationId: ctx.organizationId,
-      status: 'invited',
-    },
-    include: {
-      profile: { select: { displayName: true, avatarUrl: true, userId: true } },
-      roles: { include: { role: { select: { name: true, slug: true } } } },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+// GET /api/invitations — List pending invitations (paginated)
+export const GET = withAuth(async (request: NextRequest, ctx: AuthContext) => {
+  const pagination = parsePagination(request.nextUrl.searchParams)
+  const { skip, take } = prismaPagination(pagination)
 
-  return NextResponse.json(apiEnvelope(invitations))
+  const [invitations, total] = await Promise.all([
+    db.organizationMembership.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        status: 'invited',
+      },
+      skip,
+      take,
+      include: {
+        profile: { select: { displayName: true, avatarUrl: true, userId: true } },
+        roles: { include: { role: { select: { name: true, slug: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    db.organizationMembership.count({
+      where: { organizationId: ctx.organizationId, status: 'invited' },
+    }),
+  ])
+
+  return NextResponse.json({
+    ...apiEnvelope(invitations),
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total,
+      totalPages: Math.ceil(total / pagination.pageSize),
+      hasMore: pagination.page < Math.ceil(total / pagination.pageSize),
+    },
+  })
 }, { permission: 'member.invite' })
 
 // POST /api/invitations — Invite user (creates membership with 'invited' status)

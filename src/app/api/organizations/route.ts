@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const rawLimit = parseInt(searchParams.get('limit') || '20', 10)
+    const limit = Math.min(Math.max(rawLimit, 1), 100)
     const cursor = searchParams.get('cursor')
 
     const organizations = await db.organization.findMany({
@@ -44,8 +45,9 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
+    console.error('[GET /api/organizations]', error)
     return NextResponse.json(
-      { error: 'Failed to fetch organizations', details: String(error) },
+      { error: 'Failed to fetch organizations' },
       { status: 500 }
     )
   }
@@ -87,8 +89,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: organization }, { status: 201 })
   } catch (error) {
+    console.error('[POST /api/organizations]', error)
     return NextResponse.json(
-      { error: 'Failed to create organization', details: String(error) },
+      { error: 'Failed to create organization' },
       { status: 500 }
     )
   }

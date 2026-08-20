@@ -45,11 +45,10 @@ export const PATCH = withAuthParams(async (
     const updated = await updateConversationTitle(id, ctx.organizationId, title.trim())
     return NextResponse.json(apiEnvelope(updated, 'Title updated'))
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to update conversation'
-    if (msg.includes('not found')) {
-      return NextResponse.json(apiEnvelope(null, msg), { status: 404 })
-    }
     console.error('[PATCH /api/ai/conversations/:id]', error)
-    return NextResponse.json(apiEnvelope(null, msg), { status: 400 })
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json(apiEnvelope(null, 'Conversation not found'), { status: 404 })
+    }
+    return NextResponse.json(apiEnvelope(null, 'Failed to update conversation'), { status: 400 })
   }
 }, { permission: 'ai.conversations.view' })

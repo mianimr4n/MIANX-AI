@@ -9,11 +9,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuthParams, type AuthContext } from '@/core/authorization'
 import { db } from '@/lib/db'
 import { apiEnvelope } from '@/core/tenancy/utils'
+import { parsePagination, prismaPagination } from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/teams/:id/members — List members
-export const GET = withAuthParams(async (_request: NextRequest, ctx: AuthContext, { id }) => {
+// GET /api/teams/:id/members — List members (paginated)
+export const GET = withAuthParams(async (request: NextRequest, ctx: AuthContext, { id }) => {
   const team = await db.team.findFirst({
     where: { id, organizationId: ctx.organizationId },
   })
@@ -21,20 +22,37 @@ export const GET = withAuthParams(async (_request: NextRequest, ctx: AuthContext
     return NextResponse.json({ error: 'Team not found' }, { status: 404 })
   }
 
-  const members = await db.teamMember.findMany({
-    where: { teamId: id },
-    include: {
-      membership: {
-        include: {
-          profile: { select: { displayName: true, avatarUrl: true, userId: true } },
-          roles: { include: { role: { select: { name: true, slug: true } } } },
+  const pagination = parsePagination(request.nextUrl.searchParams)
+  const { skip, take } = prismaPagination(pagination)
+
+  const [members, total] = await Promise.all([
+    db.teamMember.findMany({
+      where: { teamId: id },
+      skip,
+      take,
+      include: {
+        membership: {
+          include: {
+            profile: { select: { displayName: true, avatarUrl: true, userId: true } },
+            roles: { include: { role: { select: { name: true, slug: true } } } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'asc' },
-  })
+      orderBy: { createdAt: 'asc' },
+    }),
+    db.teamMember.count({ where: { teamId: id } }),
+  ])
 
-  return NextResponse.json(apiEnvelope(members))
+  return NextResponse.json({
+    ...apiEnvelope(members),
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total,
+      totalPages: Math.ceil(total / pagination.pageSize),
+      hasMore: pagination.page < Math.ceil(total / pagination.pageSize),
+    },
+  })
 }, { anyPermission: ['team.view', 'organization.view'] })
 
 // POST /api/teams/:id/members — Add member to team

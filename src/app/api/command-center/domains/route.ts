@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // All domains overview
+    // All domains overview (platform-level — small table, but add safety cap)
     const domains = await db.domain.findMany({
       orderBy: { name: 'asc' },
+      take: 100,
     })
 
     // Enrich with counts
