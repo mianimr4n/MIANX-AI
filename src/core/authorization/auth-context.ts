@@ -43,13 +43,17 @@ export class AuthorizationError extends Error {
 
 /**
  * Resolve the current user from Supabase session.
- * In dev mode (no Supabase), returns the dev stub user.
+ * In dev mode (no Supabase), returns the dev stub user ONLY in development.
+ * Phase 11: Production ALWAYS requires real authentication.
  */
 export async function resolveCurrentUser(): Promise<AuthUser | null> {
   const supabase = await createServerSupabaseClient()
 
   if (!supabase) {
-    // Dev mode: return dev user from header or default
+    // Phase 11: Dev mode stub ONLY in development environment
+    if (process.env.NODE_ENV === 'production') {
+      return null // No Supabase in production = auth failure
+    }
     return { id: 'user-admin-001', email: 'dev@mianx.ai' }
   }
 

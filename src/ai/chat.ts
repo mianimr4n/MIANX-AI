@@ -1,14 +1,16 @@
 // ══════════════════════════════════════════════════════
 // MIANX.AI — Chat Engine
 // Orchestrates AI completions with tools, memory, and agent config
+// Phase 11: Added AI guards, max tokens cap, history limit
 // ══════════════════════════════════════════════════════════════════
 
-import { streamText, type CoreMessage } from 'ai'
+import { streamText } from 'ai'
 import type { AIProvider, ChatOptions, ToolContext } from './types'
 import { getLanguageModel, parseModelId, getDefaultModel, isProviderConfigured } from './router'
 import { getToolsByNames, toAISDKTools, listTools, filterToolsByPermission } from './tools'
 import { createConversation, addMessage, getConversationMessages } from './memory'
 import { getSystemAgent } from './agents'
+import { AI_MAX_TOKENS, AI_MAX_HISTORY_MESSAGES, checkAILimits, recordAIUsage, validateAIInput, createAITimeout } from './guards'
 
 /** Resolve the model to use: explicit > agent config (custom/system) > default */
 async function resolveModel(opts: ChatOptions, context: ToolContext): Promise<{ provider: AIProvider; model: string }> {
@@ -34,7 +36,6 @@ async function resolveModel(opts: ChatOptions, context: ToolContext): Promise<{ 
 async function resolveSystemPrompt(opts: ChatOptions, context: ToolContext): Promise<string> {
   if (opts.systemPrompt) return opts.systemPrompt
   if (opts.metadata?.agentSlug) {
-    // Check custom agents first (org-level), then system agents
     const { resolveAgent } = await import('./agent-config')
     const agent = await resolveAgent(context.organizationId, opts.metadata.agentSlug as string)
     if (agent) return agent.systemPrompt
@@ -46,33 +47,42 @@ async function resolveSystemPrompt(opts: ChatOptions, context: ToolContext): Pro
 async function resolveTools(opts: ChatOptions, context: ToolContext) {
   let toolNames: string[] | undefined
   if (opts.metadata?.agentSlug) {
-    // Check custom agents first, then system agents
     const { resolveAgent } = await import('./agent-config')
     const agent = await resolveAgent(context.organizationId, opts.metadata.agentSlug as string)
     toolNames = agent?.tools
-    // If no custom agent found, fall back to system agent
     if (!toolNames) {
       const systemAgent = getSystemAgent(opts.metadata.agentSlug as string)
       toolNames = systemAgent?.tools
     }
   }
   let tools = toolNames ? getToolsByNames(toolNames) : listTools()
-  // Filter tools the user doesn't have permission for
   tools = filterToolsByPermission(tools, context.permissions)
   return toAISDKTools(tools, context)
 }
 
 /** Create a streaming chat response using Vercel AI SDK */
 export async function streamChat(opts: ChatOptions, context: ToolContext, currentMessage?: string) {
+  // Phase 11: Validate input
+  if (currentMessage) {
+    const inputCheck = validateAIInput(currentMessage)
+    if (!inputCheck.valid) {
+      throw new Error(inputCheck.reason)
+    }
+  }
+
+  // Phase 11: Check org AI limits
+  const estimatedTokens = (currentMessage?.length || 0) * 2 // rough estimate
+  const limitCheck = checkAILimits(context.organizationId, estimatedTokens)
+  if (!limitCheck.allowed) {
+    throw new Error(limitCheck.reason)
+  }
+
   const { provider, model } = await resolveModel(opts, context)
 
-  // Check if provider is configured
   if (!isProviderConfigured(provider)) {
     const configured = (['openai', 'anthropic', 'google'] as AIProvider[])
       .filter(isProviderConfigured)
-      .map(p => p)
     if (configured.length > 0) {
-      // Fallback to first configured provider
       const fallback = getDefaultModel()
       return executeStream({ ...opts, provider: fallback.provider, model: fallback.id }, context, currentMessage)
     }
@@ -88,12 +98,17 @@ async function executeStream(opts: ChatOptions & { provider: AIProvider; model: 
   const languageModel = getLanguageModel(opts.provider, opts.model)
 
   // Build messages from conversation history + current user message
-  let messages: CoreMessage[] = []
+  let messages: { role: 'user' | 'assistant' | 'system'; content: string }[] = []
   if (opts.conversationId) {
     const history = await getConversationMessages(opts.conversationId)
-    messages = history.map(m => ({ role: m.role, content: m.content })) as CoreMessage[]
+    // Phase 11: Limit history to prevent context bloat; only user/assistant messages
+    const trimmedHistory = history.length > AI_MAX_HISTORY_MESSAGES
+      ? history.slice(-AI_MAX_HISTORY_MESSAGES)
+      : history
+    messages = trimmedHistory
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
   }
-  // Append the current user message so the LLM sees it in context
   if (currentMessage) {
     messages.push({ role: 'user', content: currentMessage })
   }
@@ -101,16 +116,24 @@ async function executeStream(opts: ChatOptions & { provider: AIProvider; model: 
   // Track timing
   const startTime = Date.now()
 
+  // Phase 11: Enforce max tokens cap
+  const maxTokens = Math.min(opts.maxTokens || 4096, AI_MAX_TOKENS)
+
   const result = streamText({
     model: languageModel,
     system: systemPrompt,
     messages,
     tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
-    maxTokens: opts.maxTokens,
+    maxOutputTokens: maxTokens,
     temperature: opts.temperature,
+    // Phase 11: Timeout protection
+    abortSignal: createAITimeout().signal,
     onFinish: async ({ text, toolCalls, usage, toolResults }) => {
       const latencyMs = Date.now() - startTime
-      // Persist assistant message
+      // Phase 11: Record usage for rate tracking
+      const totalTokens = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0)
+      recordAIUsage(context.organizationId, totalTokens)
+
       if (opts.conversationId) {
         await addMessage({
           conversationId: opts.conversationId,
@@ -118,8 +141,8 @@ async function executeStream(opts: ChatOptions & { provider: AIProvider; model: 
           content: text,
           model: opts.model,
           provider: opts.provider,
-          tokensIn: usage?.promptTokens ?? 0,
-          tokensOut: usage?.completionTokens ?? 0,
+          tokensIn: usage?.inputTokens ?? 0,
+          tokensOut: usage?.outputTokens ?? 0,
           latencyMs,
           toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults && toolResults.length > 0 ? toolResults : undefined,
@@ -137,10 +160,15 @@ export async function sendMessage(
   context: ToolContext,
   opts: ChatOptions & { conversationId?: string; title?: string }
 ) {
+  // Phase 11: Validate input early
+  const inputCheck = validateAIInput(userMessage)
+  if (!inputCheck.valid) {
+    throw new Error(inputCheck.reason)
+  }
+
   const { conversationId: existingId, ...rest } = opts
   let conversationId = existingId
 
-  // Create conversation if new
   if (!conversationId) {
     const conv = await createConversation({
       organizationId: context.organizationId,
@@ -151,14 +179,12 @@ export async function sendMessage(
     conversationId = conv.id
   }
 
-  // Persist user message
   await addMessage({
     conversationId,
     role: 'user',
     content: userMessage,
   })
 
-  // Stream the response
   const stream = await streamChat(
     { ...rest, conversationId },
     context,

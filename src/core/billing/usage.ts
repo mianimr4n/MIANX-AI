@@ -180,19 +180,19 @@ export async function recordAiUsage(organizationId: string, data: {
    */
   idempotencyKey?: string
 }) {
-  const results = []
+  const recs: UsageIngestResult[] = []
   // Use caller-provided base key; fall back to random UUID (no dedup guarantee)
   const base = data.idempotencyKey ?? randomUUID()
 
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.requests', quantity: 1, source: 'ai-chat', idempotencyKey: `${base}:req` }))
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.input_tokens', quantity: data.inputTokens, source: 'ai-chat', idempotencyKey: `${base}:in` }))
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.output_tokens', quantity: data.outputTokens, source: 'ai-chat', idempotencyKey: `${base}:out` }))
-  results.push(await recordUsage({ organizationId, meterKey: 'ai.total_tokens', quantity: data.inputTokens + data.outputTokens, source: 'ai-chat', idempotencyKey: `${base}:total` }))
+  recs.push(await recordUsage({ organizationId, meterKey: 'ai.requests', quantity: 1, source: 'ai-chat', idempotencyKey: `${base}:req` }))
+  recs.push(await recordUsage({ organizationId, meterKey: 'ai.input_tokens', quantity: data.inputTokens, source: 'ai-chat', idempotencyKey: `${base}:in` }))
+  recs.push(await recordUsage({ organizationId, meterKey: 'ai.output_tokens', quantity: data.outputTokens, source: 'ai-chat', idempotencyKey: `${base}:out` }))
+  recs.push(await recordUsage({ organizationId, meterKey: 'ai.total_tokens', quantity: data.inputTokens + data.outputTokens, source: 'ai-chat', idempotencyKey: `${base}:total` }))
   if (data.toolCalls && data.toolCalls > 0) {
-    results.push(await recordUsage({ organizationId, meterKey: 'ai.tool_calls', quantity: data.toolCalls, source: 'ai-chat', idempotencyKey: `${base}:tc` }))
+    recs.push(await recordUsage({ organizationId, meterKey: 'ai.tool_calls', quantity: data.toolCalls, source: 'ai-chat', idempotencyKey: `${base}:tc` }))
   }
 
-  return results
+  return recs
 }
 
 // ── AI Budget Status ──

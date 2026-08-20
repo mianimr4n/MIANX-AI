@@ -63,7 +63,7 @@ export const PATCH = withAuthParams(async (request: NextRequest, ctx: AuthContex
   }
 
   if (description !== undefined) {
-    updateData.description = typeof description === 'string' ? description.trim() : null
+    updateData.description = typeof description === 'string' ? description.trim() : undefined
   }
 
   if (triggerType !== undefined) {

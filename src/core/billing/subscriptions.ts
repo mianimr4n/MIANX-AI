@@ -302,7 +302,7 @@ export async function checkExpiredSubscriptions() {
   const results = []
   for (const sub of expired) {
     const updated = await transitionSubscription(sub.id, 'expired')
-    results.push(updated)
+    results.push(updated as never)
   }
   return results
 }
@@ -317,7 +317,7 @@ export async function checkExpiredTrials() {
   const results = []
   for (const sub of trials) {
     const updated = await transitionSubscription(sub.id, 'expired')
-    results.push(updated)
+    results.push(updated as never)
   }
   return results
 }

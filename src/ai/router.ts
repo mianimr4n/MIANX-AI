@@ -6,7 +6,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import type { LanguageModelV1 } from 'ai'
+import type { LanguageModel } from 'ai'
 import type { AIProvider, RegisteredModel, ModelId } from './types'
 
 // ── Provider Client Singletons ──
@@ -105,7 +105,7 @@ export function parseModelId(input: string): ModelId | null {
 }
 
 /** Get a Vercel AI SDK LanguageModel instance for a provider/model */
-export function getLanguageModel(provider: AIProvider, modelId: string): LanguageModelV1 {
+export function getLanguageModel(provider: AIProvider, modelId: string): LanguageModel {
   switch (provider) {
     case 'openai':
       return getOpenAI()(modelId)

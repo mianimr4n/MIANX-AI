@@ -1,12 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  /* config options here */
+  output: 'standalone',
   typescript: {
-    ignoreBuildErrors: true,
+    // Phase 11: Do NOT ignore build errors in production
+    ignoreBuildErrors: process.env.NODE_ENV !== 'production',
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
 };
 
 export default nextConfig;

@@ -23,7 +23,7 @@ export const POST = withAuthParams(async (_request: NextRequest, ctx: AuthContex
   }
 
   const connection = await db.oAuthConnection.findUnique({
-    where: { organizationId_provider: { organizationId: ctx.organizationId, provider } },
+    where: { organizationId_provider: { organizationId: ctx.organizationId, provider: provider as never } },
   })
 
   if (!connection) {

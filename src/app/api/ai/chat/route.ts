@@ -57,11 +57,11 @@ export const POST = withAuth(async (request, ctx) => {
     )
 
     // Return the stream as a response
-    return stream.toDataStreamResponse({
+    return stream.toTextStreamResponse({
       headers: {
         'X-Conversation-Id': convId,
       },
-    })
+    }) as unknown as NextResponse
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'AI chat failed'
     // If no providers configured, return a helpful message

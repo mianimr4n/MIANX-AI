@@ -52,11 +52,11 @@ export function getProviderConfig(provider: OAuthProviderType): ProviderConfig {
 }
 
 /** List all supported providers with their configuration */
-export function listProviders(): Array<OAuthProviderType & { config: ProviderConfig }> {
-  return (Object.keys(PROVIDER_CONFIGS) as OAuthProviderType[]).map((p) => ({
-    ...p,
-    config: PROVIDER_CONFIGS[p],
-  }));
+export function listProviders() {
+  return (Object.keys(PROVIDER_CONFIGS) as string[]).map((p) => ({
+    provider: p as OAuthProviderType,
+    config: PROVIDER_CONFIGS[p as keyof typeof PROVIDER_CONFIGS],
+  }))
 }
 
 /**

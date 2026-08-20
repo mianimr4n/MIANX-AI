@@ -1,13 +1,11 @@
-// ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Audit Logging Middleware
 // Captures all mutations with actor, resource, before/after
-// ══════════════════════════════════════════════════════════════════
+// Phase 11: Fixed Prisma v6 compatibility
 
 import { Prisma } from '@prisma/client'
 import { getTenantContext } from './tenant-context'
 
-// Models that should be audited
-const AUDITED_MODELS = new Set([
+const AUDITED_MODELS = new Set<string>([
   'organization',
   'organizationMembership',
   'team',
@@ -25,32 +23,23 @@ const AUDITED_MODELS = new Set([
 
 const MUTATION_OPERATIONS = new Set(['create', 'update', 'delete', 'createMany', 'updateMany', 'deleteMany', 'upsert'])
 
-/**
- * Prisma middleware that logs all mutations to audit_logs.
- * Uses separate Prisma client to avoid infinite recursion.
- */
 export function auditMiddleware() {
   return Prisma.defineExtension({
     name: 'auditLogger',
     query: {
       $allModels: {
-        async $allOperations({ args, model, operation, query, data }) {
-          // Only audit mutations on audited models
-          if (!MUTATION_OPERATIONS.has(operation) || !AUDITED_MODELS.has(model as typeof AUDITED_MODELS[number])) {
+        async $allOperations({ args, model, operation, query }) {
+          if (!MUTATION_OPERATIONS.has(operation) || !AUDITED_MODELS.has(model as string)) {
             return query(args)
           }
 
           const ctx = getTenantContext()
           const result = await query(args)
 
-          // Fire-and-forget audit write (don't block the operation)
           try {
             const db = (await import('@/lib/db')).db
-            // Determine the resource ID from result or args
-            const resourceId = (result as Record<string, unknown>)?.id
-              || (args.where as Record<string, unknown>)?.id
-              || (args.data as Record<string, unknown>)?.id
-              || null
+            const r = result as Record<string, unknown> | null
+            const resourceId = r?.id as string | undefined
 
             db.auditLog.create({
               data: {
@@ -59,15 +48,11 @@ export function auditMiddleware() {
                 actorId: ctx?.userId || 'system',
                 action: `${model}.${operation}`,
                 resourceType: model,
-                resourceId: resourceId as string | undefined,
+                resourceId,
                 metadata: JSON.stringify({ args: redactSensitive(args) }),
               },
-            }).catch(() => {
-              // Audit logging failure should never break the main operation
-            })
-          } catch {
-            // Ignore audit errors
-          }
+            }).catch(() => {})
+          } catch {}
 
           return result
         },
@@ -76,7 +61,6 @@ export function auditMiddleware() {
   })
 }
 
-/** Redact sensitive fields from audit metadata */
 function redactSensitive(obj: Record<string, unknown>): unknown {
   const sensitive = new Set(['password', 'token', 'secret', 'apiKey', 'creditCard'])
   const redacted: Record<string, unknown> = {}

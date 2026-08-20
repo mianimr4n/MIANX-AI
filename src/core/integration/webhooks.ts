@@ -67,7 +67,7 @@ export async function createWebhook(data: CreateWebhookData) {
       organizationId: data.organizationId,
       name: data.name,
       url: data.url,
-      secret,
+      secret: crypto.randomUUID().toString(),
       eventTypes: JSON.stringify(data.eventTypes),
       status: 'active',
     },

@@ -91,6 +91,7 @@ export async function getAgentConfig(organizationId: string, slug: string) {
       id: true, slug: true, name: true, description: true,
       model: true, provider: true, temperature: true,
       maxTokens: true, tools: true, status: true, createdAt: true, updatedAt: true,
+      systemPrompt: true,
     },
   })
 }

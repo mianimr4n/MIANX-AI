@@ -1,14 +1,16 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Tenant-Scoped Prisma Client Extension
 // Automatically filters all queries by organization_id
+// Phase 11: Added all Poultry models to tenant scope
 // ══════════════════════════════════════════════════════════════════
 
 import { Prisma } from '@prisma/client'
 import { getTenantContext, TenantContextError } from './tenant-context'
 
-// Models that have organization_id and must be tenant-scoped
+// Phase 11: All models that have organization_id and must be tenant-scoped
 // Prisma $allModels provides PascalCase names (e.g. 'Team', 'AuditLog')
 const TENANT_SCOPED_MODELS = new Set([
+  // Core
   'OrganizationMembership',
   'Team',
   'TeamMember',
@@ -16,8 +18,40 @@ const TENANT_SCOPED_MODELS = new Set([
   'File',
   'AuditLog',
   'Notification',
+  // Domain & Module
   'OrganizationDomain',
   'OrganizationModule',
+  // AI
+  'Conversation',
+  'AgentConfig',
+  // Automation
+  'Event',
+  'Workflow',
+  'WorkflowRun',
+  'Job',
+  'Approval',
+  // Integration
+  'ApiKey',
+  'Webhook',
+  'WebhookDelivery',
+  'OAuthConnection',
+  // Billing
+  'Subscription',
+  'UsageRecord',
+  'Invoice',
+  // Observability
+  'Incident',
+  // Phase 11: Poultry domain models — CRITICAL tenant isolation
+  'PoultryFarm',
+  'PoultryShed',
+  'PoultryFlock',
+  'PoultryFeedRecord',
+  'PoultryHealthRecord',
+  'PoultryMortalityRecord',
+  'PoultryProductionRecord',
+  'PoultryCustomer',
+  'PoultrySale',
+  'PoultryProcurement',
 ])
 
 function isTenantScoped(model: string): boolean {
@@ -28,11 +62,6 @@ function isTenantScoped(model: string): boolean {
  * Create a tenant-scoped Prisma client extension.
  * Wraps findMany, findFirst, findUnique, create, update, delete, upsert
  * to automatically inject organization_id filters.
- *
- * Usage:
- *   const tenantDb = db.$extends(withTenantScope())
- *   // Inside withTenant():
- *   const orgs = await tenantDb.team.findMany() // auto-filtered
  */
 export function withTenantScope() {
   return Prisma.defineExtension({
@@ -51,7 +80,7 @@ export function withTenantScope() {
           // ── READ operations: inject WHERE filter ──
           if (['findMany', 'findFirst', 'findUnique', 'count', 'aggregate', 'groupBy'].includes(operation)) {
             const where = (args.where as Record<string, unknown>) || {}
-            // Never allow overriding organization_id in client-supplied where
+            // Phase 11: Never allow overriding organization_id in client-supplied where
             if (where.organizationId && where.organizationId !== orgId) {
               throw new TenantContextError(
                 `Cross-tenant access denied: cannot access organization ${where.organizationId}`
@@ -66,7 +95,6 @@ export function withTenantScope() {
           // ── CREATE: inject organization_id ──
           if (operation === 'create') {
             const data = (args.data as Record<string, unknown>) || {}
-            // Reject if client tries to set organization_id
             if (data.organizationId && data.organizationId !== orgId) {
               throw new TenantContextError('Cannot set organizationId on create — auto-assigned from tenant context')
             }
@@ -90,7 +118,6 @@ export function withTenantScope() {
           // ── UPDATE / DELETE: must filter by organization_id ──
           if (['update', 'updateMany', 'delete', 'deleteMany'].includes(operation)) {
             const where = (args.where as Record<string, unknown>) || {}
-            // Always add organization_id to prevent cross-tenant mutations
             if (where.organizationId && where.organizationId !== orgId) {
               throw new TenantContextError(
                 `Cross-tenant mutation denied: cannot modify organization ${where.organizationId}`

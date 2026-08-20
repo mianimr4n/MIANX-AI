@@ -23,7 +23,7 @@ export const DELETE = withAuthParams(async (_request: NextRequest, ctx: AuthCont
   }
 
   const connection = await db.oAuthConnection.findUnique({
-    where: { organizationId_provider: { organizationId: ctx.organizationId, provider } },
+    where: { organizationId_provider: { organizationId: ctx.organizationId, provider: provider as never } },
   })
 
   if (!connection) {

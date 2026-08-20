@@ -166,7 +166,7 @@ export async function createModule(input: CreateModuleInput) {
     return { ok: false as const, error: `Module with slug '${slug}' already exists in domain '${domain.slug}'` }
   }
 
-  const module = await db.module.create({
+  const createdModule = await db.module.create({
     data: {
       domainId: input.domainId,
       name: input.name,
@@ -178,7 +178,7 @@ export async function createModule(input: CreateModuleInput) {
     },
   })
 
-  return { ok: true as const, data: module }
+  return { ok: true as const, data: createdModule }
 }
 
 /** List modules for a domain */
@@ -268,21 +268,21 @@ export async function deactivateDomain(orgDomainId: string, organizationId: stri
 export async function activateModule(input: ActivateModuleInput) {
   const { organizationId, moduleId, configuration } = input
 
-  const module = await db.module.findUnique({
+  const fetchedModule = await db.module.findUnique({
     where: { id: moduleId },
     include: { domain: true },
   })
-  if (!module) return { ok: false as const, error: 'Module not found' }
-  if (module.status !== 'available') {
-    return { ok: false as const, error: `Module is '${module.status}' — only 'available' modules can be activated` }
+  if (!fetchedModule) return { ok: false as const, error: 'Module not found' }
+  if (fetchedModule.status !== 'available') {
+    return { ok: false as const, error: `Module is '${fetchedModule.status}' — only 'available' modules can be activated` }
   }
 
   // Verify domain is active for this org
   const orgDomain = await db.organizationDomain.findUnique({
-    where: { organizationId_domainId: { organizationId, domainId: module.domainId } },
+    where: { organizationId_domainId: { organizationId, domainId: fetchedModule.domainId } },
   })
   if (!orgDomain || orgDomain.status !== 'active') {
-    return { ok: false as const, error: `Parent domain '${module.domain.name}' must be activated first` }
+    return { ok: false as const, error: `Parent domain '${fetchedModule.domain.name}' must be activated first` }
   }
 
   // Check existing

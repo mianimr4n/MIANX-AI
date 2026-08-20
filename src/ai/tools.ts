@@ -177,28 +177,29 @@ export function filterToolsByPermission(tools: ToolDefinition[], permissions: st
 
 /** Convert tool definitions to AI SDK tool objects */
 export function toAISDKTools(tools: ToolDefinition[], context: ToolContext) {
-  const result: Record<string, ReturnType<typeof tool>> = {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: Record<string, any> = {}
   for (const t of tools) {
-    result[t.name] = tool({
+    const schema = t.parameters?.properties ? z.object(Object.fromEntries(
+      Object.entries(t.parameters.properties as Record<string, { type: string; description?: string }>).map(([k, v]) => {
+        let schema: z.ZodTypeAny = z.string()
+        if (v.type === 'number') schema = z.number()
+        else if (v.type === 'boolean') schema = z.boolean()
+        else if (v.type === 'array') schema = z.array(z.unknown())
+        return [k, schema.optional()]
+      })
+    )) : z.object({})
+
+    result[t.name] = {
       description: t.description,
-      parameters: z.object(t.parameters?.properties ? Object.fromEntries(
-        Object.entries(t.parameters.properties as Record<string, { type: string; description?: string }>).map(([k, v]) => {
-          let schema: z.ZodTypeAny = z.string()
-          if (v.type === 'number') schema = z.number()
-          else if (v.type === 'boolean') schema = z.boolean()
-          else if (v.type === 'array') schema = z.array(z.unknown())
-          return [k, schema.optional()]
-        })
-      ) : {}),
-      execute: async (args) => {
-        const raw = args as Record<string, unknown>
-        // Permission gate at execution time (defense in depth)
+      parameters: schema,
+      execute: async (args: Record<string, unknown>) => {
         if (t.requiredPermission && !hasPermission(context.permissions, t.requiredPermission)) {
           return JSON.stringify({ error: `Permission denied: ${t.requiredPermission} required` })
         }
-        return t.execute(raw, context)
+        return t.execute(args, context)
       },
-    })
+    }
   }
   return result
 }

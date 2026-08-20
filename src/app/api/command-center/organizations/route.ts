@@ -17,28 +17,28 @@ export async function GET(request: NextRequest) {
     // List all organizations with summary
     try {
       const orgs = await db.organization.findMany({
-        select: {
-          id: true, name: true, slug: true, status: true,
-          createdAt: true,
-          _count: {
-            memberships: true,
-            domains: true,
-            workflows: true,
-            conversations: true,
-          },
-        },
         orderBy: { createdAt: 'desc' },
         take: 50,
       })
 
-      // Enrich with subscription info
+      // Enrich with counts
       const enriched = await Promise.all(orgs.map(async (org) => {
-        let subscription = null
+        const [memberCount, domainCount, workflowCount, convCount] = await Promise.all([
+          db.organizationMembership.count({ where: { organizationId: org.id } }),
+          db.organizationDomain.count({ where: { organizationId: org.id } }),
+          db.workflow.count({ where: { organizationId: org.id } }),
+          db.conversation.count({ where: { organizationId: org.id } }),
+        ])
+
+        let subscription: { state: string; plan: { name: string } | null; currentPeriodEnd: Date | null } | null = null
         try {
-          subscription = await db.subscription.findFirst({
+          const sub = await db.subscription.findFirst({
             where: { organizationId: org.id },
-            select: { state: true, currentPeriodEnd: true, plan: { select: { name: true } } },
+            include: { plan: { select: { name: true } } },
           })
+          if (sub) {
+            subscription = { state: sub.state, plan: sub.plan, currentPeriodEnd: sub.currentPeriodEnd }
+          }
         } catch {}
 
         return {
@@ -47,10 +47,10 @@ export async function GET(request: NextRequest) {
           slug: org.slug,
           status: org.status,
           created_at: org.createdAt,
-          members: org._count.memberships,
-          domains: org._count.domains,
-          workflows: org._count.workflows,
-          conversations: org._count.conversations,
+          members: memberCount,
+          domains: domainCount,
+          workflows: workflowCount,
+          conversations: convCount,
           subscription: subscription ? {
             state: subscription.state,
             plan: subscription.plan?.name,

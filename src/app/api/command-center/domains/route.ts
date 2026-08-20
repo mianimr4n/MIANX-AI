@@ -41,30 +41,24 @@ export async function GET(request: NextRequest) {
 
     // All domains overview
     const domains = await db.domain.findMany({
-      select: {
-        id: true, name: true, slug: true, version: true, status: true,
-        _count: {
-          organizationDomains: true,
-          modules: true,
-        },
-      },
       orderBy: { name: 'asc' },
     })
 
-    // Enrich with active org count
+    // Enrich with counts
     const enriched = await Promise.all(domains.map(async (d) => {
-      const activeOrgs = await db.organizationDomain.count({
-        where: { domainId: d.id, status: 'active' },
-      })
+      const [activeOrgs, moduleCount] = await Promise.all([
+        db.organizationDomain.count({ where: { domainId: d.id, status: 'active' } }),
+        db.module.count({ where: { domainId: d.id } }),
+      ])
       return {
         id: d.id,
         name: d.name,
         slug: d.slug,
         version: d.version,
         status: d.status,
-        total_organizations: d._count.organizationDomains,
+        total_organizations: activeOrgs,
         active_organizations: activeOrgs,
-        modules: d._count.modules,
+        modules: moduleCount,
       }
     }))
 
