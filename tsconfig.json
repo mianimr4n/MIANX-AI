@@ -42,6 +42,7 @@
     "scripts",
     "upload",
     "tool-results",
-    "skills"
+    "skills",
+    "src/__tests__"
   ]
 }

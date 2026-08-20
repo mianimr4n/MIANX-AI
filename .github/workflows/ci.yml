@@ -1,5 +1,5 @@
 # MIANX.AI — CI Pipeline
-# Phase 11: Install → Generate → Lint → TypeCheck → Tests → Build
+# Phase 12: Install → Generate → Lint → TypeCheck → Core Tests → Isolation Tests → Build
 
 name: CI
 
@@ -28,6 +28,9 @@ jobs:
 
       - name: TypeCheck (production)
         run: NODE_ENV=production npx tsc --noEmit
+
+      - name: Core Unit Tests
+        run: bun test
 
       - name: Tenant Isolation Tests
         run: bun run scripts/test-tenant-isolation.ts

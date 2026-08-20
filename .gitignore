@@ -57,3 +57,20 @@ tool-results/
 
 # Skills directory
 /skills/
+
+# Database files (never track runtime databases)
+db/*.db
+db/*.db-journal
+db/*.db-wal
+
+# Bun lock binary (we use bun.lock text format)
+bun.lockb
+
+# npm lockfile (project uses bun)
+package-lock.json
+
+# Upload directory (source specs, not part of the application)
+/upload/
+
+# Download directory (generated deliverables)
+/download/

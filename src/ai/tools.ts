@@ -177,7 +177,6 @@ export function filterToolsByPermission(tools: ToolDefinition[], permissions: st
 
 /** Convert tool definitions to AI SDK tool objects */
 export function toAISDKTools(tools: ToolDefinition[], context: ToolContext) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: Record<string, any> = {}
   for (const t of tools) {
     const schema = t.parameters?.properties ? z.object(Object.fromEntries(
