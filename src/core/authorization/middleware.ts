@@ -85,6 +85,8 @@ if (typeof globalThis !== 'undefined') {
 
 async function resolveAndAuthorize(request: NextRequest, options: WithAuthOptions): Promise<AuthContext | NextResponse> {
   const requestId = getRequestId(request)
+  // Widened to string so TypeScript cannot narrow inside nested blocks
+  const nodeEnv: string = process.env.NODE_ENV
 
   // System/skip-auth mode
   if (options.skipAuth) {
@@ -101,11 +103,14 @@ async function resolveAndAuthorize(request: NextRequest, options: WithAuthOption
   const user = await resolveCurrentUser()
   if (!user) {
     // Phase 11: Dev mode bypass NEVER active in production
-    if (options.allowDev !== false && process.env.NODE_ENV !== 'production') {
+    if (options.allowDev !== false && nodeEnv !== 'production') {
       const devCtx = await resolveDevAuthContext(request)
       if (!devCtx) {
         return NextResponse.json(
-          { error: 'No active membership found. Pass X-Dev-User-Id and X-Dev-Org-Id headers.', requestId },
+          { error: nodeEnv !== 'production'
+              ? 'No active membership found. Pass X-Dev-User-Id and X-Dev-Org-Id headers.'
+              : 'No active membership found. Contact your administrator.',
+            requestId },
           { status: 401, headers: { 'X-Request-Id': requestId } }
         )
       }
@@ -118,7 +123,7 @@ async function resolveAndAuthorize(request: NextRequest, options: WithAuthOption
   }
 
   // 2. Determine org from header (NEVER from body/query — defense in depth)
-  const orgId = request.headers.get('x-organization-id') || request.headers.get('x-dev-org-id')
+  const orgId = request.headers.get('x-organization-id') || (nodeEnv !== 'production' ? request.headers.get('x-dev-org-id') : null)
   if (!orgId) {
     return NextResponse.json(
       { error: 'Organization context required. Pass X-Organization-Id header.', requestId },

@@ -1,6 +1,7 @@
 /**
  * MIANX.AI — AI Chat API
  * POST /api/ai/chat — Send a message and get streaming response
+ * Phase 11: Rate limited (30 req/min per IP), token budget, input validation
  */
 
 import { NextResponse } from 'next/server'

@@ -67,7 +67,7 @@ export function getEnv(): Env | null {
     }
     // Dev mode: log warnings but don't block
     console.warn('[ENV] Configuration issues (non-fatal in dev):', result.error.flatten().fieldErrors)
-    _env = result.data as Env
+    _env = result.data as unknown as Env
     return _env
   }
 

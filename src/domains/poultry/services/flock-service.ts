@@ -112,8 +112,10 @@ export async function getFlockMetrics(organizationId: string, flockId: string) {
   ])
 
   const mortalityRate = flock.quantity > 0 ? ((totalMortality._sum.count ?? 0) / flock.quantity * 100) : 0
-  const fcr = (totalFeedCost._sum.quantityKg ?? 0) > 0 && (totalEggs._sum.totalWeightKg ?? 0) > 0
-    ? totalFeedCost._sum.quantityKg / totalEggs._sum.totalWeightKg
+  const feedKg = totalFeedCost._sum.quantityKg ?? 0
+  const eggWeightKg = totalEggs._sum.totalWeightKg ?? 0
+  const fcr = feedKg > 0 && eggWeightKg > 0
+    ? feedKg / eggWeightKg
     : null
   const ageDays = Math.max(0, Math.floor((Date.now() - flock.placementDate.getTime()) / 86400000))
 

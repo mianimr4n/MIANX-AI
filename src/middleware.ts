@@ -41,7 +41,10 @@ export function middleware(request: NextRequest) {
       response.headers.set('Access-Control-Allow-Origin', origin)
       response.headers.set('Access-Control-Allow-Credentials', 'true')
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS')
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Organization-Id, X-Dev-User-Id, X-Dev-Org-Id, X-Request-Id')
+      const devHeaders = process.env.NODE_ENV !== 'production'
+        ? ', X-Dev-User-Id, X-Dev-Org-Id'
+        : ''
+      response.headers.set('Access-Control-Allow-Headers', `Content-Type, Authorization, X-Organization-Id${devHeaders}, X-Request-Id`)
       response.headers.set('Access-Control-Max-Age', '86400')
     }
   }
@@ -54,7 +57,7 @@ export function middleware(request: NextRequest) {
       return response
     }
     // Ensure X-Organization-Id is present for API routes
-    const orgId = request.headers.get('x-organization-id') || request.headers.get('x-dev-org-id')
+    const orgId = request.headers.get('x-organization-id') || (process.env.NODE_ENV !== 'production' ? request.headers.get('x-dev-org-id') : null)
     if (!orgId && process.env.NODE_ENV === 'production') {
       // In production, require organization context
       if (!pathname.startsWith('/api/health') && !pathname.startsWith('/api/domains') && pathname !== '/api/route') {

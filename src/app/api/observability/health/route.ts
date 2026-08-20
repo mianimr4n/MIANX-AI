@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hasP1Active } from '@/core/observability'
+import { APP_VERSION } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,8 +91,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     status: overallStatus,
     app: 'mianx-ai',
-    version: '0.9.0',
-    phase: 9,
+    version: APP_VERSION,
+    phase: 11,
     checks,
  latency_ms: totalLatency,
     timestamp: new Date().toISOString(),

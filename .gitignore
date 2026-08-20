@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -50,5 +51,9 @@ test
 prompt
 
 server.log
+
+# Temporary sandbox tool output
+tool-results/
+
 # Skills directory
 /skills/

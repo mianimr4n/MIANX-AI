@@ -1,31 +1,33 @@
 # ══════════════════════════════════════════════════════
 # MIANX.AI — Production Dockerfile
-# Phase 11: Multi-stage build for minimal image
+# Phase 11: Multi-stage build, bun runtime, minimal image
 # ══════════════════════════════════════════════════════
 
-FROM node:20-alpine AS base
+FROM oven/bun:1-alpine AS base
 
-# Install dependencies only when needed
+# ── Dependencies stage ─────────────────────────────────────
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json bun.lock package-lock.json* ./
-RUN npm ci --only=production
+COPY package.json bun.lock ./
+COPY prisma ./prisma/
+RUN bun install --frozen-lockfile
 
-# Build stage
+# ── Build stage ────────────────────────────────────────────
 FROM base AS builder
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npx prisma generate
-RUN npm run build
+RUN bun run db:generate
+RUN bun run build
 
-# Production stage
+# ── Production runner stage ────────────────────────────────
 FROM base AS runner
 WORKDIR /app
 
@@ -35,16 +37,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output
+# Copy standalone output + public assets
 COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
+RUN mkdir -p .next/static
 RUN chown nextjs:nodejs .next
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Non-root user
 USER nextjs
 
 EXPOSE 3000
@@ -52,4 +53,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+
+CMD ["bun", "run", "start"]
