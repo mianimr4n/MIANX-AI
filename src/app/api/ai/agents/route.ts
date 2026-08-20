@@ -51,8 +51,10 @@ export const POST = withAuth(async (request, ctx) => {
 
     return NextResponse.json(apiEnvelope(agent, 'Agent created'), { status: 201 })
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to create agent'
     console.error('[POST /api/ai/agents]', error)
+    const msg = process.env.NODE_ENV === 'production'
+      ? 'Failed to create agent'
+      : (error instanceof Error ? error.message : 'Failed to create agent')
     return NextResponse.json(apiEnvelope(null, msg), { status: 400 })
   }
 }, { permission: 'ai.agents.manage' })

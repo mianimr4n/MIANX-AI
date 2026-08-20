@@ -26,14 +26,15 @@ if (process.env.NODE_ENV === 'production') {
 //
 // Directives and rationale:
 //   default-src 'self'           — baseline deny-all
-//   script-src  'self' 'unsafe-inline' 'unsafe-eval'
+//   script-src  'self' 'unsafe-inline' (dev: + 'unsafe-eval')
 //     → 'unsafe-inline' required: Next.js injects inline scripts for
 //       hydration, route prefetching, and RSC payload delivery.
 //       These scripts carry nonces in dev but not reliably in all
 //       standalone/prod configurations.
-//     → 'unsafe-eval' required: Next.js hot-reload (dev), and some
-//       third-party dependencies (react-syntax-highlighter) use eval.
-//       TODO: Remove 'unsafe-eval' once syntax highlighter is replaced.
+//     → 'unsafe-eval' in dev only: Next.js HMR uses eval for hot module
+//       replacement. Not required in production — verified that
+//       react-syntax-highlighter, prismjs, and refractor do NOT use
+//       eval or new Function() in their runtime paths.
 //   style-src 'self' 'unsafe-inline'
 //     → Required: Tailwind CSS v4 emits runtime styles via inline
 //       <style> tags. Emotion/styled-components also use inline styles.
@@ -63,7 +64,7 @@ if (process.env.NODE_ENV === 'production') {
 function buildCSP(isDev: boolean): string {
   const parts = [
     `default-src 'self'`,
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: https:`,
     `font-src 'self' https: data:`,

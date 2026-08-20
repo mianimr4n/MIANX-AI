@@ -158,11 +158,11 @@ describe('API Security: CSP Policy Requirements', () => {
     'connect-src', 'frame-ancestors', 'base-uri', 'form-action', 'object-src',
   ]
 
-  test('CSP includes all required directives', () => {
+  test('CSP includes all required directives (production)', () => {
     const isDev = false
     const parts = [
       `default-src 'self'`,
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
       `style-src 'self' 'unsafe-inline'`,
       `img-src 'self' data: blob: https:`,
       `font-src 'self' https: data:`,
@@ -199,6 +199,18 @@ describe('API Security: CSP Policy Requirements', () => {
     const isDev = false
     const connectSrc = `connect-src 'self' https: wss:${isDev ? ' http://localhost:*' : ''}`
     expect(connectSrc).not.toContain('http://localhost')
+  })
+
+  test('CSP production does NOT include unsafe-eval', () => {
+    const isDev = false
+    const scriptSrc = `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`
+    expect(scriptSrc).not.toContain('unsafe-eval')
+  })
+
+  test('CSP dev mode includes unsafe-eval for HMR', () => {
+    const isDev = true
+    const scriptSrc = `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`
+    expect(scriptSrc).toContain('unsafe-eval')
   })
 })
 

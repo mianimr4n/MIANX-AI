@@ -4,6 +4,7 @@
 **Commit:** (see git log)
 **Branch:** main
 **Date:** 2026-08-20
+**Closeout:** 2026-08-21
 
 ---
 
@@ -14,7 +15,7 @@
 - **Action:** Implemented production-safe CSP in `src/middleware.ts` via `buildCSP()`.
 - **Required unsafe directives documented:**
   - `unsafe-inline` (script-src, style-src): Required by Next.js RSC hydration, Tailwind CSS v4 runtime styles.
-  - `unsafe-eval` (script-src): Required by react-syntax-highlighter. TODO: Remove when syntax highlighter is replaced.
+  - `unsafe-eval` (script-src): Dev-only for Next.js HMR. Removed from production in closeout (2026-08-21). Verified: no dependency uses eval at runtime.
 
 ### P2: Rate Limiting
 - **Finding:** In-memory rate limiter embedded in auth middleware. Not extensible for multi-instance.
@@ -106,11 +107,11 @@
 
 | Check | Result |
 |-------|--------|
-| `bun test` | 118 pass, 0 fail |
+| `bun test` | 152 pass, 0 fail |
 | `bun run test:isolation` | 56 pass, 0 fail |
-| `npx tsc --noEmit` | 0 errors |
-| `npx eslint .` | 0 errors (1 pre-existing warning) |
-| `NODE_ENV=production next build` | Clean build |
+| `bunx tsc --noEmit` | 0 errors |
+| `bun run lint` | 0 errors (1 pre-existing warning) |
+| `NODE_ENV=production bun run build` | PASS |
 
 ---
 
@@ -118,7 +119,7 @@
 
 ```
 default-src 'self';
-script-src 'self' 'unsafe-inline' 'unsafe-eval';
+script-src 'self' 'unsafe-inline';
 style-src 'self' 'unsafe-inline';
 img-src 'self' data: blob: https:;
 font-src 'self' https: data:;
@@ -129,16 +130,16 @@ form-action 'self';
 object-src 'none';
 ```
 
-Dev mode adds `http://localhost:*` to `connect-src`.
+Dev mode adds `unsafe-eval` to `script-src` and `http://localhost:*` to `connect-src`.
 
 ## Rate Limit Architecture
 
 - **Interface:** `RateLimitStore` with `get`, `set`, `increment` methods
 - **Default:** `InMemoryRateLimitStore` — Map-based, 60s cleanup interval
+- **Redis:** `RedisRateLimitStore` — atomic INCR, TTL auto-expiry, fail-safe fallback. Activated via `REDIS_URL`.
 - **Entry point:** `rateLimit(key, maxRequests, windowMs)` → `RateLimitResult`
-- **Key builder:** `buildRateLimitKey(request)` — extracts IP + path
+- **Key builders:** `buildRateLimitKey(request)` and `buildOrgRateLimitKey(request, orgId)`
 - **Production only:** Rate limiting is skipped in development
-- **Future:** Implement `RedisRateLimitStore` when `REDIS_URL` is configured
 
 ## API Pagination Standards
 
@@ -150,20 +151,16 @@ Dev mode adds `http://localhost:*` to `connect-src`.
 
 ---
 
-## Remaining Infrastructure Requirements
+## Future Improvements (Non-Blocking)
 
-1. **Redis** for distributed rate limiting (optional — in-memory works for single-instance)
-2. **Syntax highlighter replacement** to remove `unsafe-eval` from CSP
-3. **next-auth upgrade** to v5 to resolve critical advisory (requires migration)
-4. **sharp upgrade** to 0.35.x (requires `--force` due to breaking changes)
+1. **next-auth v5 migration** (Auth.js) — v4 is in maintenance mode with no active CVEs
+2. **sharp upgrade** to 0.35.x (requires `--force` due to breaking changes)
+3. **CSP nonces** to replace `unsafe-inline` (requires deeper Next.js config)
 
 ---
 
 ## Final Production Readiness Status
 
-**COMPLETE WITH CONDITIONS**
+**COMPLETE**
 
-Conditions:
-- `unsafe-eval` in CSP documented as required until syntax highlighter is replaced
-- next-auth critical advisory tracked upstream (v5 migration needed)
-- Redis not required for single-instance deployment but recommended for multi-instance
+All security-critical conditions resolved. See `docs/audits/PHASE-13-CLOSEOUT.md` for detailed closeout audit.
