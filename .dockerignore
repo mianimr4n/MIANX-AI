@@ -1,0 +1,61 @@
+# ══════════════════════════════════════════════════════
+# MIANX.AI — Docker Build Context Exclusions
+# ══════════════════════════════════════════════════════
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+.next
+node_modules
+out
+dist
+
+# Development databases
+*.db
+*.db-wal
+*.db-shm
+db/
+
+# Test artifacts
+coverage
+tool-results/
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+dev.log
+server.log
+
+# Scripts (not needed in production image)
+scripts/
+tests/
+worklog.md
+worklog-phase*.md
+
+# Misc
+.github
+.eslintcache
+tailwind.config.ts
+postcss.config.mjs

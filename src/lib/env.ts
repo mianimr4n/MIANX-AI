@@ -30,6 +30,9 @@ const envSchema = z.object({
   // Phase 11: AI safety limits
   AI_DAILY_TOKEN_LIMIT: z.coerce.number().int().min(1000).max(10000000).optional(),
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(10).max(10000).optional(),
+
+  // Phase 15: Redis (optional — distributed rate limiting)
+  REDIS_URL: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -58,6 +61,7 @@ export function getEnv(): Env | null {
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
     AI_DAILY_TOKEN_LIMIT: process.env.AI_DAILY_TOKEN_LIMIT,
     AI_DAILY_REQUEST_LIMIT: process.env.AI_DAILY_REQUEST_LIMIT,
+    REDIS_URL: process.env.REDIS_URL,
   })
 
   if (!result.success) {

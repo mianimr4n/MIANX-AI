@@ -1,13 +1,13 @@
 # ══════════════════════════════════════════════════════
 # MIANX.AI — Production Dockerfile
-# Phase 11: Multi-stage build, bun runtime, minimal image
+# Phase 15: PostgreSQL target, Prisma migration support
 # ══════════════════════════════════════════════════════
 
 FROM oven/bun:1-alpine AS base
 
 # ── Dependencies stage ─────────────────────────────────────
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -24,6 +24,10 @@ COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Dummy DATABASE_URL for prisma generate (never connects to DB)
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build_db"
+
+# Generate Prisma client (PostgreSQL) — no DB connection needed
 RUN bun run db:generate
 RUN bun run build
 
@@ -34,13 +38,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# OpenSSL runtime dependency for PostgreSQL (pg native TLS)
+RUN apk add --no-cache libc6-compat openssl
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output + public assets
+# Copy standalone output + public assets + Prisma schema (for migrate deploy)
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
 RUN mkdir -p .next/static
-RUN chown nextjs:nodejs .next
+RUN chown -R nextjs:nodejs .next prisma
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

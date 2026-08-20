@@ -1,13 +1,13 @@
 # MIANX.AI — Production Deployment Workflow
-# Phase 14: Manual approval deployment to production
+# Phase 15: CI → manual approve → Prisma migrate → deploy → health verify
 #
 # Flow:
-#   push to main → CI quality gates → manual approve → deploy → health verify
+#   push to main → CI quality gates → manual approve → deploy → migrate → verify
 #
 # Prerequisites:
 #   - Repository secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
 #   - Server has docker compose installed
-#   - Server has .env.production configured
+#   - Server has .env.production configured with PostgreSQL DATABASE_URL
 
 name: Deploy
 
@@ -50,8 +50,8 @@ jobs:
             git pull origin main
             docker compose -f docker-compose.production.yml build
             docker compose -f docker-compose.production.yml up -d
-            echo "Waiting for startup (20s)..."
-            sleep 20
+            echo "Waiting for startup (30s)..."
+            sleep 30
 
       - name: Health Verification
         run: |

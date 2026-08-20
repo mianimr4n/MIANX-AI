@@ -1,6 +1,22 @@
 // ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Core Database Schema v1.0
 // Multi-Tenant, Multi-Domain, AI-Native Business Operating System
+// ══════════════════════════════════════════════════════════════════
+//
+// PRODUCTION: PostgreSQL (this file)
+//   provider = "postgresql"
+//   DATABASE_URL = "postgresql://user:pass@host:5432/dbname?schema=public"
+//   Migrate:  prisma migrate deploy
+//   Create:   prisma migrate dev --name init
+//
+// LOCAL DEV (SQLite): Use prisma/schema.dev.prisma
+//   prisma generate --schema=prisma/schema.dev.prisma
+//   prisma db push --schema=prisma/schema.dev.prisma
+//
+// CLIENT GENERATION (no DB needed):
+//   prisma generate  (uses this schema, PostgreSQL types)
+//
 // ══════════════════════════════════════════════════════════════════
 
 generator client {
@@ -8,7 +24,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -37,79 +53,79 @@ enum ActorType {
 // ── CORE TABLES ────────────────────────────────────────────────
 
 model Organization {
-  id        String   @id @default(cuid())
+  id        String             @id @default(cuid())
   name      String
-  slug      String   @unique
+  slug      String             @unique
   status    OrganizationStatus @default(active)
-  timezone  String   @default("UTC")
-  locale    String   @default("en")
-  currency  String   @default("USD")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  timezone  String             @default("UTC")
+  locale    String             @default("en")
+  currency  String             @default("USD")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
-  memberships     OrganizationMembership[]
-  teams           Team[]
-  roles           Role[]
-  settings        Setting[]
-  files           File[]
-  auditLogs       AuditLog[]
-  notifications   Notification[]
-  domains         OrganizationDomain[]
-  modules         OrganizationModule[]
-  conversations   Conversation[]
-  agentConfigs    AgentConfig[]
-  events          Event[]
-  workflows       Workflow[]
-  workflowRuns   WorkflowRun[]
-  jobs           Job[]
-  approvals      Approval[]
-  apiKeys        ApiKey[]
-  webhooks       Webhook[]
-  webhookDeliveries WebhookDelivery[]
-  oauthConnections OAuthConnection[]
-  plans          Plan[]
-  subscriptions  Subscription[]
-  usageRecords   UsageRecord[]
-  invoices       Invoice[]
-  incidents      Incident[]
-  poultryFarms  PoultryFarm[]
-  poultrySheds  PoultryShed[]
-  poultryFlocks PoultryFlock[]
-  poultryFeedRecords    PoultryFeedRecord[]
-  poultryHealthRecords  PoultryHealthRecord[]
-  poultryMortalityRecords PoultryMortalityRecord[]
+  memberships              OrganizationMembership[]
+  teams                    Team[]
+  roles                    Role[]
+  settings                 Setting[]
+  files                    File[]
+  auditLogs                AuditLog[]
+  notifications            Notification[]
+  domains                  OrganizationDomain[]
+  modules                  OrganizationModule[]
+  conversations            Conversation[]
+  agentConfigs             AgentConfig[]
+  events                   Event[]
+  workflows                Workflow[]
+  workflowRuns             WorkflowRun[]
+  jobs                     Job[]
+  approvals                Approval[]
+  apiKeys                  ApiKey[]
+  webhooks                 Webhook[]
+  webhookDeliveries        WebhookDelivery[]
+  oauthConnections         OAuthConnection[]
+  plans                    Plan[]
+  subscriptions            Subscription[]
+  usageRecords             UsageRecord[]
+  invoices                 Invoice[]
+  incidents                Incident[]
+  poultryFarms             PoultryFarm[]
+  poultrySheds             PoultryShed[]
+  poultryFlocks            PoultryFlock[]
+  poultryFeedRecords       PoultryFeedRecord[]
+  poultryHealthRecords     PoultryHealthRecord[]
+  poultryMortalityRecords  PoultryMortalityRecord[]
   poultryProductionRecords PoultryProductionRecord[]
-  poultryCustomers PoultryCustomer[]
-  poultrySales   PoultrySale[]
-  poultryProcurements PoultryProcurement[]
+  poultryCustomers         PoultryCustomer[]
+  poultrySales             PoultrySale[]
+  poultryProcurements      PoultryProcurement[]
 }
 
 model Profile {
-  id         String   @id @default(cuid())
-  userId     String   @unique
+  id          String   @id @default(cuid())
+  userId      String   @unique
   displayName String?
-  avatarUrl  String?
-  locale     String   @default("en")
-  timezone   String   @default("UTC")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  avatarUrl   String?
+  locale      String   @default("en")
+  timezone    String   @default("UTC")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   memberships OrganizationMembership[]
 }
 
 model OrganizationMembership {
-  id             String             @id @default(cuid())
+  id             String           @id @default(cuid())
   organizationId String
   userId         String
-  status         MembershipStatus   @default(invited)
+  status         MembershipStatus @default(invited)
   joinedAt       DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
-  profile       Profile         @relation(fields: [userId], references: [userId])
-  roles         MembershipRole[]
-  teamMembers   TeamMember[]
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  profile      Profile          @relation(fields: [userId], references: [userId])
+  roles        MembershipRole[]
+  teamMembers  TeamMember[]
 
   @@unique([organizationId, userId])
 }
@@ -122,15 +138,15 @@ model Team {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
   members      TeamMember[]
 }
 
 model TeamMember {
-  id             String @id @default(cuid())
-  teamId         String
-  membershipId   String
-  createdAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  teamId       String
+  membershipId String
+  createdAt    DateTime @default(now())
 
   team       Team                   @relation(fields: [teamId], references: [id])
   membership OrganizationMembership @relation(fields: [membershipId], references: [id])
@@ -146,9 +162,9 @@ model Role {
   description    String?
   isSystem       Boolean @default(false)
 
-  organization Organization?  @relation(fields: [organizationId], references: [id])
-  permissions   RolePermission[]
-  memberships   MembershipRole[]
+  organization Organization?    @relation(fields: [organizationId], references: [id])
+  permissions  RolePermission[]
+  memberships  MembershipRole[]
 
   @@unique([organizationId, slug])
 }
@@ -183,7 +199,7 @@ model MembershipRole {
 }
 
 model Setting {
-  id             String @id @default(cuid())
+  id             String   @id @default(cuid())
   organizationId String
   scopeType      String
   scopeId        String?
@@ -211,22 +227,22 @@ model File {
 }
 
 model AuditLog {
-  id            String    @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
-  actorType     ActorType
-  actorId       String
-  action        String
-  resourceType  String
-  resourceId    String?
-  metadata      String?
-  createdAt     DateTime  @default(now())
+  actorType      ActorType
+  actorId        String
+  action         String
+  resourceType   String
+  resourceId     String?
+  metadata       String?
+  createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
 }
 
 model Notification {
   id              String    @id @default(cuid())
-  organizationId String
+  organizationId  String
   recipientUserId String
   type            String
   title           String
@@ -270,13 +286,13 @@ model Domain {
 }
 
 model OrganizationDomain {
-  id             String       @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   domainId       String
-  status         String       @default("active")
+  status         String    @default("active")
   configuration  String?
   activatedAt    DateTime?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   domain       Domain       @relation(fields: [domainId], references: [id])
@@ -294,20 +310,20 @@ model Module {
   status      ModuleStatus @default(draft)
   manifest    String?
 
-  domain Domain @relation(fields: [domainId], references: [id])
+  domain     Domain               @relation(fields: [domainId], references: [id])
   orgModules OrganizationModule[]
 
   @@unique([domainId, slug])
 }
 
 model OrganizationModule {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   moduleId       String
-  status         String   @default("active")
+  status         String    @default("active")
   configuration  String?
   activatedAt    DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   module       Module       @relation(fields: [moduleId], references: [id])
@@ -331,24 +347,24 @@ enum ConversationStatus {
 }
 
 model Conversation {
-  id             String              @id @default(cuid())
+  id             String             @id @default(cuid())
   organizationId String
   userId         String
   title          String?
   agentSlug      String?
   status         ConversationStatus @default(active)
   metadata       String?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
   messages     AiMessage[]
 
   @@index([organizationId, userId])
 }
 
 model AiMessage {
-  id             String       @id @default(cuid())
+  id             String      @id @default(cuid())
   conversationId String
   role           MessageRole
   content        String
@@ -356,10 +372,10 @@ model AiMessage {
   toolResults    String?
   model          String?
   provider       String?
-  tokensIn       Int          @default(0)
-  tokensOut      Int          @default(0)
-  latencyMs      Int          @default(0)
-  createdAt      DateTime     @default(now())
+  tokensIn       Int         @default(0)
+  tokensOut      Int         @default(0)
+  latencyMs      Int         @default(0)
+  createdAt      DateTime    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -447,24 +463,24 @@ enum ApprovalDecision {
 }
 
 model Event {
-  id              String     @id @default(cuid())
-  eventType       String
-  eventVersion    String     @default("1")
-  organizationId  String
-  domainId        String?
-  sourceType      String     @default("system")
-  sourceId        String?
-  actorType       String     @default("system")
-  actorId         String?
-  correlationId   String?
-  causationId     String?
-  payload         String
-  metadata        String?
-  status          EventStatus @default(pending)
-  deliveredAt     DateTime?
-  createdAt       DateTime   @default(now())
+  id             String      @id @default(cuid())
+  eventType      String
+  eventVersion   String      @default("1")
+  organizationId String
+  domainId       String?
+  sourceType     String      @default("system")
+  sourceId       String?
+  actorType      String      @default("system")
+  actorId        String?
+  correlationId  String?
+  causationId    String?
+  payload        String
+  metadata       String?
+  status         EventStatus @default(pending)
+  deliveredAt    DateTime?
+  createdAt      DateTime    @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization  Organization  @relation(fields: [organizationId], references: [id])
   triggeredRuns WorkflowRun[]
 
   @@index([organizationId, status, createdAt])
@@ -472,46 +488,46 @@ model Event {
 }
 
 model Workflow {
-  id              String         @id @default(cuid())
-  organizationId  String
-  name            String
-  slug            String
-  description     String?
-  triggerType     String         @default("event")
-  triggerConfig   String
-  steps           String
-  conditions      String?
-  retryPolicy     String?
-  timeoutSeconds  Int            @default(300)
-  status          WorkflowStatus @default(draft)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String
+  description    String?
+  triggerType    String         @default("event")
+  triggerConfig  String
+  steps          String
+  conditions     String?
+  retryPolicy    String?
+  timeoutSeconds Int            @default(300)
+  status         WorkflowStatus @default(draft)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  runs           WorkflowRun[]
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  runs         WorkflowRun[]
 
   @@unique([organizationId, slug])
 }
 
 model WorkflowRun {
-  id              String     @id @default(cuid())
-  workflowId      String
-  organizationId  String
-  triggerEventId  String?
-  status          RunStatus  @default(queued)
-  input           String?
-  output          String?
-  currentStep     Int?
-  error           String?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id             String    @id @default(cuid())
+  workflowId     String
+  organizationId String
+  triggerEventId String?
+  status         RunStatus @default(queued)
+  input          String?
+  output         String?
+  currentStep    Int?
+  error          String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  workflow    Workflow       @relation(fields: [workflowId], references: [id])
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  triggerEvent Event?        @relation(fields: [triggerEventId], references: [id])
-  stepRuns    WorkflowStepRun[]
+  workflow     Workflow          @relation(fields: [workflowId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  triggerEvent Event?            @relation(fields: [triggerEventId], references: [id])
+  stepRuns     WorkflowStepRun[]
   approvals    Approval[]
 
   @@index([workflowId, status])
@@ -519,40 +535,40 @@ model WorkflowRun {
 }
 
 model WorkflowStepRun {
-  id              String     @id @default(cuid())
+  id             String     @id @default(cuid())
   workflowRunId  String
   stepId         String
-  status          StepStatus @default(pending)
-  attempt         Int        @default(1)
-  input           String?
-  output          String?
-  error           String?
+  status         StepStatus @default(pending)
+  attempt        Int        @default(1)
+  input          String?
+  output         String?
+  error          String?
   idempotencyKey String?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime   @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
 
   workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
 
-  @@index([workflowRunId])
   @@unique([workflowRunId, stepId, idempotencyKey])
+  @@index([workflowRunId])
 }
 
 model Job {
-  id              String       @id @default(cuid())
-  organizationId  String
-  type            String
-  payload         String?
-  status          JobStatus   @default(pending)
-  priority        JobPriority  @default(normal)
-  scheduledAt     DateTime?
-  attempts        Int          @default(0)
-  maxAttempts     Int          @default(3)
-  lastError       String?
-  runAt           DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id             String      @id @default(cuid())
+  organizationId String
+  type           String
+  payload        String?
+  status         JobStatus   @default(pending)
+  priority       JobPriority @default(normal)
+  scheduledAt    DateTime?
+  attempts       Int         @default(0)
+  maxAttempts    Int         @default(3)
+  lastError      String?
+  runAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -563,18 +579,18 @@ model Approval {
   id                String           @id @default(cuid())
   workflowRunId     String
   workflowStepRunId String?
-  organizationId      String
-  requestedAction    String
-  requestedBy        String?
-  approvedBy         String?
-  decision          ApprovalDecision  @default(pending)
+  organizationId    String
+  requestedAction   String
+  requestedBy       String?
+  approvedBy        String?
+  decision          ApprovalDecision @default(pending)
   reason            String?
   expiresAt         DateTime?
   decidedAt         DateTime?
-  createdAt          DateTime         @default(now())
+  createdAt         DateTime         @default(now())
 
-  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id])
-  organization  Organization  @relation(fields: [organizationId], references: [id])
+  workflowRun  WorkflowRun  @relation(fields: [workflowRunId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([decision, createdAt])
 }
@@ -614,79 +630,79 @@ enum OAuthConnectionStatus {
 }
 
 model ApiKey {
-  id              String       @id @default(cuid())
-  organizationId  String
-  name            String
-  prefix          String
-  keyHash         String
-  lastUsedAt      DateTime?
-  expiresAt       DateTime?
-  status          ApiKeyStatus @default(active)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  prefix         String
+  keyHash        String
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  status         ApiKeyStatus @default(active)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  webhooks    Webhook[]
+  webhooks     Webhook[]
 
-  @@index([organizationId, status])
   @@unique([organizationId, prefix])
+  @@index([organizationId, status])
 }
 
 model Webhook {
-  id              String       @id @default(cuid())
-  organizationId  String
-  name            String
-  url             String
-  secret          String
-  eventTypes      String
-  apiKeyId        String?
-  status          WebhookStatus @default(active)
-  lastDeliveryAt  DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id             String        @id @default(cuid())
+  organizationId String
+  name           String
+  url            String
+  secret         String
+  eventTypes     String
+  apiKeyId       String?
+  status         WebhookStatus @default(active)
+  lastDeliveryAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  organization  Organization  @relation(fields: [organizationId], references: [id])
-  apiKey       ApiKey?        @relation(fields: [apiKeyId], references: [id])
-  deliveries    WebhookDelivery[]
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  apiKey       ApiKey?           @relation(fields: [apiKeyId], references: [id])
+  deliveries   WebhookDelivery[]
 
   @@index([organizationId, status])
 }
 
 model WebhookDelivery {
-  id              String                @id @default(cuid())
-  webhookId       String
-  organizationId  String
-  eventId         String?
-  eventType       String
-  payload         String
-  statusCode      Int?
-  response        String?
-  status          WebhookDeliveryStatus @default(pending)
-  attempt         Int                   @default(1)
-  deliveredAt      DateTime?
-  createdAt       DateTime              @default(now())
+  id             String                @id @default(cuid())
+  webhookId      String
+  organizationId String
+  eventId        String?
+  eventType      String
+  payload        String
+  statusCode     Int?
+  response       String?
+  status         WebhookDeliveryStatus @default(pending)
+  attempt        Int                   @default(1)
+  deliveredAt    DateTime?
+  createdAt      DateTime              @default(now())
 
   webhook      Webhook      @relation(fields: [webhookId], references: [id], onDelete: Cascade)
-  organization  Organization  @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([webhookId, status])
   @@index([organizationId, createdAt])
 }
 
 model OAuthConnection {
-  id                String                @id @default(cuid())
-  organizationId    String
-  provider          OAuthProvider
-  externalAccountId String?
+  id                  String                @id @default(cuid())
+  organizationId      String
+  provider            OAuthProvider
+  externalAccountId   String?
   externalAccountName String?
-  accessToken       String
-  refreshToken      String?
-  tokenExpiresAt    DateTime?
-  metadata          String?
-  status            OAuthConnectionStatus @default(active)
-  lastUsedAt        DateTime?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  accessToken         String
+  refreshToken        String?
+  tokenExpiresAt      DateTime?
+  metadata            String?
+  status              OAuthConnectionStatus @default(active)
+  lastUsedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -772,43 +788,43 @@ enum PaymentStatus {
 }
 
 model Plan {
-  id            String           @id @default(cuid())
-  name          String
-  slug          String
-  description   String?
-  billingCycle  PlanBillingCycle @default(monthly)
-  basePrice     Float            @default(0)
-  currency      String           @default("USD")
-  status        PlanStatus       @default(draft)
-  isSystem      Boolean          @default(false)
-  metadata      String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id           String           @id @default(cuid())
+  name         String
+  slug         String
+  description  String?
+  billingCycle PlanBillingCycle @default(monthly)
+  basePrice    Float            @default(0)
+  currency     String           @default("USD")
+  status       PlanStatus       @default(draft)
+  isSystem     Boolean          @default(false)
+  metadata     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  organization    Organization?   @relation(fields: [organizationId], references: [id])
-  organizationId  String?
-  versions        PlanVersion[]
-  subscriptions    Subscription[]
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  versions       PlanVersion[]
+  subscriptions  Subscription[]
 
   @@unique([organizationId, slug])
   @@index([status])
 }
 
 model PlanVersion {
-  id            String   @id @default(cuid())
-  planId        String
-  version       Int
-  name          String?
-  description   String?
-  features      String
-  limits        String?
-  seatAllowance Int      @default(1)
-  aiTokenAllowance Int  @default(0)
-  status        String   @default("active")
-  createdAt     DateTime @default(now())
+  id               String   @id @default(cuid())
+  planId           String
+  version          Int
+  name             String?
+  description      String?
+  features         String
+  limits           String?
+  seatAllowance    Int      @default(1)
+  aiTokenAllowance Int      @default(0)
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
 
-  plan             Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
-  subscriptions    Subscription[]
+  plan          Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
 
   @@unique([planId, version])
 }
@@ -824,21 +840,21 @@ model Feature {
 }
 
 model Subscription {
-  id               String            @id @default(cuid())
-  organizationId   String
-  planId           String?
-  planVersionId    String
-  state            SubscriptionState @default(trialing)
-  trialEndsAt      DateTime?
+  id                 String            @id @default(cuid())
+  organizationId     String
+  planId             String?
+  planVersionId      String
+  state              SubscriptionState @default(trialing)
+  trialEndsAt        DateTime?
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
-  seatCount        Int               @default(1)
-  canceledAt       DateTime?
-  expiresAt        DateTime?
-  pausedAt         DateTime?
-  metadata         String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  seatCount          Int               @default(1)
+  canceledAt         DateTime?
+  expiresAt          DateTime?
+  pausedAt           DateTime?
+  metadata           String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   plan         Plan?        @relation(fields: [planId], references: [id])
@@ -851,31 +867,31 @@ model Subscription {
 }
 
 model UsageMeter {
-  id               String           @id @default(cuid())
-  key              String           @unique
-  name             String
-  description      String?
-  unit             String           @default("count")
-  meterType        UsageMeterType   @default(counter)
-  aggregation       String           @default("sum")
-  resetCycle       String           @default("monthly")
-  overageBehavior  OverageBehavior  @default(hard_limit)
-  defaultLimit     Int?
-  metadata         String?
-  createdAt        DateTime         @default(now())
+  id              String          @id @default(cuid())
+  key             String          @unique
+  name            String
+  description     String?
+  unit            String          @default("count")
+  meterType       UsageMeterType  @default(counter)
+  aggregation     String          @default("sum")
+  resetCycle      String          @default("monthly")
+  overageBehavior OverageBehavior @default(hard_limit)
+  defaultLimit    Int?
+  metadata        String?
+  createdAt       DateTime        @default(now())
 }
 
 model UsageRecord {
-  id              String   @id @default(cuid())
-  organizationId  String
-  meterKey        String
-  quantity        Float
-  unit            String   @default("count")
-  source          String?
-  idempotencyKey  String   @unique
-  metadata        String?
-  occurredAt      DateTime @default(now())
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  organizationId String
+  meterKey       String
+  quantity       Float
+  unit           String   @default("count")
+  source         String?
+  idempotencyKey String   @unique
+  metadata       String?
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -884,24 +900,24 @@ model UsageRecord {
 }
 
 model Invoice {
-  id               String        @id @default(cuid())
-  organizationId   String
-  subscriptionId   String
-  invoiceNumber    String
-  status           InvoiceStatus @default(draft)
-  periodStart      DateTime
-  periodEnd        DateTime
-  currency         String        @default("USD")
-  subtotal         Float         @default(0)
-  discount         Float         @default(0)
-  tax              Float         @default(0)
-  total            Float         @default(0)
-  lineItems        String
-  issuedAt         DateTime?
-  dueAt            DateTime?
-  paidAt           DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  organizationId String
+  subscriptionId String
+  invoiceNumber  String
+  status         InvoiceStatus @default(draft)
+  periodStart    DateTime
+  periodEnd      DateTime
+  currency       String        @default("USD")
+  subtotal       Float         @default(0)
+  discount       Float         @default(0)
+  tax            Float         @default(0)
+  total          Float         @default(0)
+  lineItems      String
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
@@ -930,27 +946,27 @@ enum IncidentState {
 }
 
 model Incident {
-  id              String           @id @default(cuid())
-  title           String
-  severity        IncidentSeverity @default(P3)
-  status          IncidentState    @default(detected)
-  service         String
-  owner           String
-  impact          String           @default("")
-  organizationId  String?
-  detectedAt      DateTime         @default(now())
-  startedAt       DateTime?
-  acknowledgedAt  DateTime?
-  resolvedAt      DateTime?
-  commander       String?
-  technicalLead   String?
-  commsOwner      String?
-  sme             String?
-  timeline        String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id             String           @id @default(cuid())
+  title          String
+  severity       IncidentSeverity @default(P3)
+  status         IncidentState    @default(detected)
+  service        String
+  owner          String
+  impact         String           @default("")
+  organizationId String?
+  detectedAt     DateTime         @default(now())
+  startedAt      DateTime?
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  commander      String?
+  technicalLead  String?
+  commsOwner     String?
+  sme            String?
+  timeline       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  organization    Organization?    @relation(fields: [organizationId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
 
   @@index([status, severity])
   @@index([organizationId])
@@ -971,59 +987,59 @@ enum AlertState {
 }
 
 model AlertRecord {
-  id              String         @id @default(cuid())
-  severity        AlertSeverity  @default(P3)
-  status          AlertState     @default(firing)
-  owner           String
-  name            String
-  description     String
-  what            String
-  why             String
-  who             String
-  action          String
-  fingerprint     String
-  firedAt         DateTime       @default(now())
-  acknowledgedAt  DateTime?
-  resolvedAt      DateTime?
-  silencedUntil   DateTime?
-  organizationId  String?
-  labels          String
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String        @id @default(cuid())
+  severity       AlertSeverity @default(P3)
+  status         AlertState    @default(firing)
+  owner          String
+  name           String
+  description    String
+  what           String
+  why            String
+  who            String
+  action         String
+  fingerprint    String
+  firedAt        DateTime      @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  silencedUntil  DateTime?
+  organizationId String?
+  labels         String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([status, severity])
   @@index([fingerprint])
 }
 
 model SLOTarget {
-  id            String   @id @default(cuid())
-  name          String   @unique
-  description   String
-  target        Float    // e.g. 0.999 = 99.9%
-  windowDays    Int      @default(30)
-  metricName    String
-  labels        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  target      Float // e.g. 0.999 = 99.9%
+  windowDays  Int      @default(30)
+  metricName  String
+  labels      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  periods       SLOPeriod[]
+  periods SLOPeriod[]
 }
 
 model SLOPeriod {
-  id                    String   @id @default(cuid())
-  sloTargetId           String
-  periodStart           DateTime @default(now())
-  periodEnd             DateTime
-  totalEvents           Int      @default(0)
-  goodEvents            Int      @default(0)
-  badEvents             Int      @default(0)
-  availability          Float    @default(1)
-  errorBudgetTotal      Float    @default(0)
-  errorBudgetConsumed   Float    @default(0)
-  errorBudgetRemaining  Float    @default(0)
-  errorBudgetPct        Float    @default(100)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  sloTargetId          String
+  periodStart          DateTime @default(now())
+  periodEnd            DateTime
+  totalEvents          Int      @default(0)
+  goodEvents           Int      @default(0)
+  badEvents            Int      @default(0)
+  availability         Float    @default(1)
+  errorBudgetTotal     Float    @default(0)
+  errorBudgetConsumed  Float    @default(0)
+  errorBudgetRemaining Float    @default(0)
+  errorBudgetPct       Float    @default(100)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   sloTarget SLOTarget @relation(fields: [sloTargetId], references: [id], onDelete: Cascade)
 
@@ -1090,35 +1106,35 @@ model PoultryFarm {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  sheds       PoultryShed[]
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  sheds        PoultryShed[]
 
   @@index([organizationId, status])
 }
 
 model PoultryShed {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   organizationId String
   farmId         String
   name           String
   shedType       PoultryShedType @default(broiler)
-  capacity       Int            @default(0)
-  currentCount   Int            @default(0)
+  capacity       Int             @default(0)
+  currentCount   Int             @default(0)
   temperature    Float?
   humidity       Float?
-  status         String         @default("active")
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  status         String          @default("active")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  farm         PoultryFarm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  farm         PoultryFarm    @relation(fields: [farmId], references: [id], onDelete: Cascade)
   flocks       PoultryFlock[]
 
   @@index([organizationId, farmId])
 }
 
 model PoultryFlock {
-  id             String            @id @default(cuid())
+  id             String             @id @default(cuid())
   organizationId String
   shedId         String
   breed          String
@@ -1128,14 +1144,14 @@ model PoultryFlock {
   status         PoultryFlockStatus @default(placed)
   averageWeight  Float?
   notes          String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-  shed           PoultryShed   @relation(fields: [shedId], references: [id], onDelete: Cascade)
-  feedRecords    PoultryFeedRecord[]
-  healthRecords  PoultryHealthRecord[]
-  mortalityRecords PoultryMortalityRecord[]
+  organization      Organization              @relation(fields: [organizationId], references: [id])
+  shed              PoultryShed               @relation(fields: [shedId], references: [id], onDelete: Cascade)
+  feedRecords       PoultryFeedRecord[]
+  healthRecords     PoultryHealthRecord[]
+  mortalityRecords  PoultryMortalityRecord[]
   productionRecords PoultryProductionRecord[]
 
   @@index([organizationId, shedId])
@@ -1149,31 +1165,31 @@ model PoultryFeedRecord {
   date           DateTime @default(now())
   feedType       String
   quantityKg     Float
-  costUsd        Float   @default(0)
+  costUsd        Float    @default(0)
   notes          String?
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  flock        PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, flockId, date])
 }
 
 model PoultryHealthRecord {
-  id             String             @id @default(cuid())
+  id             String            @id @default(cuid())
   organizationId String
   flockId        String
-  date           DateTime           @default(now())
+  date           DateTime          @default(now())
   type           PoultryHealthType
-  treatment       String
-  veterinarian    String?
-  costUsd        Float              @default(0)
+  treatment      String
+  veterinarian   String?
+  costUsd        Float             @default(0)
   nextDueDate    DateTime?
   notes          String?
-  createdAt      DateTime           @default(now())
+  createdAt      DateTime          @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  flock        PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, flockId, date])
 }
@@ -1189,24 +1205,24 @@ model PoultryMortalityRecord {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  flock        PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, flockId, date])
 }
 
 model PoultryProductionRecord {
-  id             String   @id @default(cuid())
-  organizationId String
-  flockId        String
-  date           DateTime @default(now())
-  eggsCollected  Int      @default(0)
-  totalWeightKg  Float   @default(0)
+  id                  String   @id @default(cuid())
+  organizationId      String
+  flockId             String
+  date                DateTime @default(now())
+  eggsCollected       Int      @default(0)
+  totalWeightKg       Float    @default(0)
   feedConversionRatio Float?
-  notes          String?
-  createdAt      DateTime @default(now())
+  notes               String?
+  createdAt           DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  flock       PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  flock        PoultryFlock @relation(fields: [flockId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, flockId, date])
 }
@@ -1221,48 +1237,48 @@ model PoultryCustomer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  sales       PoultrySale[]
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  sales        PoultrySale[]
 
   @@unique([organizationId, name])
 }
 
 model PoultrySale {
-  id             String             @id @default(cuid())
+  id             String            @id @default(cuid())
   organizationId String
   customerId     String?
-  date           DateTime           @default(now())
+  date           DateTime          @default(now())
   items          String
-  totalAmount    Float              @default(0)
-  currency       String             @default("USD")
-  status         PoultrySaleStatus  @default(pending)
+  totalAmount    Float             @default(0)
+  currency       String            @default("USD")
+  status         PoultrySaleStatus @default(pending)
   notes          String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  customer    PoultryCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  customer     PoultryCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, date])
   @@index([organizationId, status])
 }
 
 model PoultryProcurement {
-  id             String               @id @default(cuid())
+  id             String                 @id @default(cuid())
   organizationId String
   type           PoultryProcurementType
   supplier       String
   description    String
   quantity       Float
-  unit           String               @default("kg")
-  unitCostUsd    Float                @default(0)
-  totalCostUsd   Float                @default(0)
-  date           DateTime             @default(now())
+  unit           String                 @default("kg")
+  unitCostUsd    Float                  @default(0)
+  totalCostUsd   Float                  @default(0)
+  date           DateTime               @default(now())
   deliveryDate   DateTime?
-  status         String               @default("received")
+  status         String                 @default("received")
   notes          String?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 

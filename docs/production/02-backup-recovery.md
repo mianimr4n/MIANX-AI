@@ -1,7 +1,7 @@
 # Backup and Recovery
 
-> **MIANX.AI** — Next.js 16 + Prisma 6.19.2 + SQLite (PostgreSQL-ready)
-> Last updated: Phase 11
+> **MIANX.AI** — Next.js 16 + Prisma 6.19.2 + PostgreSQL (production)
+> Last updated: Phase 15
 
 ---
 
@@ -15,11 +15,12 @@
 
 | Aspect | Status |
 |---|---|
-| Database engine | **SQLite** (`file:` path, `db/custom.db`) |
-| Backup automation | **NOT CONFIGURED** |
-| Backup tested | **NOT TESTED** |
-| Restore tested | **NOT TESTED** |
-| Target engine | **PostgreSQL** (migration planned) |
+| Database engine | **PostgreSQL** (production) / SQLite (local dev only) |
+| Schema provider | **PostgreSQL** in `prisma/schema.prisma` |
+| Backup automation | **NOT CONFIGURED** — configure before go-live |
+| Backup tested | **NOT TESTED** — verify before go-live |
+| Restore tested | **NOT TESTED** — verify before go-live |
+| Production data exists | **NO** — fresh deployment path |
 
 ---
 
@@ -49,9 +50,63 @@
 
 ---
 
-## 3. SQLite Backup Procedures (Current)
+## 3. First Production Deployment — Migration Safety Gate
 
-### 3.1 File-Level Backup
+Since this is a **fresh production database** with no existing data, the initial migration is low-risk. However, a safety gate is still required.
+
+### 3.1 Pre-Migration Checklist
+
+- [ ] PostgreSQL instance is provisioned and accessible
+- [ ] `DATABASE_URL` in `.env.production` points to PostgreSQL
+- [ ] `pg_dump` and `pg_restore` are available on the deploy host
+- [ ] `POSTGRES_PASSWORD` is set in `.env.production` (for compose PostgreSQL)
+- [ ] Backup storage directory exists and is writable
+
+### 3.2 Initial Migration Procedure
+
+```bash
+# 1. Take a pre-migration snapshot (empty DB, but proves the toolchain works)
+pg_dump -h $PGHOST -U $PGUSER -d $PGDATABASE -Fc -f "/backups/mianx/pg/pre-migration-empty.dump"
+
+# 2. Run Prisma migrations
+npx prisma migrate deploy
+
+# 3. Verify all tables were created
+psql -h $PGHOST -U $PGUSER -d $PGDATABASE -c "\dt" | wc -l
+# Expected: ~55+ tables (51 models + _prisma_migrations + join tables)
+
+# 4. Verify enums
+psql -h $PGHOST -U $PGUSER -d $PGDATABASE -c "\dT+" | wc -l
+# Expected: ~38 enum types
+
+# 5. Post-migration backup
+pg_dump -h $PGHOST -U $PGUSER -d $PGDATABASE -Fc -f "/backups/mianx/pg/post-migration-schema.dump"
+
+# 6. Start the application and verify health
+curl -f http://localhost:3000/api/health
+```
+
+### 3.3 Rollback Decision Point
+
+| Situation | Action |
+|---|---|
+| Migration fails before any tables created | Fix schema, re-run `prisma migrate deploy` |
+| Migration fails mid-way | Drop database, recreate, re-run from clean state (no data to lose) |
+| Application fails to start after migration | Check logs, verify `DATABASE_URL`, check `prisma generate` ran |
+| Data corruption detected | Drop database, recreate, restore from `pre-migration-empty.dump`, investigate |
+
+### 3.4 Application Rollback vs Database Rollback
+
+- **Application rollback**: `git checkout <prev-tag> && docker compose up -d --build` — reverts code but NOT database schema
+- **Database rollback**: `prisma migrate rollback <migration-name>` — Prisma 6 supports rollback for applied migrations
+- **Full rollback**: Application rollback + database drop/recreate from backup
+- **IMPORTANT**: If rolling back the application to a version that expected SQLite, the database provider change will cause errors. Always ensure app and schema versions are in sync.
+
+---
+
+## 4. SQLite Backup Procedures (Local Development Only)
+
+### 4.1 File-Level Backup
 
 SQLite stores the entire database in a single file. The safest method uses the built-in `.backup` command, which handles concurrent writes correctly.
 
@@ -86,7 +141,7 @@ cp /path/to/db/custom.db /backups/custom.db
 sqlite3 /path/to/db/custom.db ".backup '/backups/custom.db'"
 ```
 
-### 3.2 SQLite Restore Procedure
+### 4.2 SQLite Restore Procedure
 
 ```bash
 # 1. Stop the application
@@ -114,7 +169,7 @@ pm start mianx    # or: systemctl start mianx
 curl -f http://localhost:3000/api/health
 ```
 
-### 3.3 SQLite Limitations
+### 4.3 SQLite Limitations
 
 - **No point-in-time recovery** — only the timestamp of the last backup is recoverable.
 - **Single-node** — no built-in replication or failover.
@@ -123,18 +178,18 @@ curl -f http://localhost:3000/api/health
 
 ---
 
-## 4. PostgreSQL Backup Procedures (Target)
+## 5. PostgreSQL Backup Procedures (Production)
 
-When MIANX.AI migrates to PostgreSQL, the following procedures apply.
+The following procedures apply to the production PostgreSQL database.
 
-### 4.1 Prerequisites
+### 5.1 Prerequisites
 
 - PostgreSQL 15+ installed and configured
 - `pg_dump` and `pg_restore` available on the backup host
 - WAL archiving enabled (for point-in-time recovery)
 - Replication slot configured (optional, for streaming replication)
 
-### 4.2 Full Backup with `pg_dump`
+### 5.2 Full Backup with `pg_dump`
 
 ```bash
 # Custom format (recommended — parallel restore capable, compressed)
@@ -150,7 +205,7 @@ pg_dump \
   -f "/backups/mianx/pg/mianx-full-$(date +%Y-%m-%d_%H%M%S).sql"
 ```
 
-### 4.3 Automated Hourly Backups (cron)
+### 5.3 Automated Hourly Backups (cron)
 
 ```bash
 # /etc/cron.d/mianx-pg-backup
@@ -165,7 +220,7 @@ pg_dump \
 0 4 * * 0 app-user find /backups/mianx/pg/compliance -name "mianx-*.dump" -mtime +365 -delete
 ```
 
-### 4.4 WAL Archiving for Point-in-Time Recovery
+### 5.4 WAL Archiving for Point-in-Time Recovery
 
 #### PostgreSQL Configuration (`postgresql.conf`)
 
@@ -195,7 +250,7 @@ SELECT
 FROM pg_stat_archiver;
 ```
 
-### 4.5 PostgreSQL Restore Procedure
+### 5.5 PostgreSQL Restore Procedure
 
 #### Full Restore from `pg_dump`
 
@@ -262,7 +317,7 @@ pm start mianx
 
 ---
 
-## 5. Restore Procedure (Generic)
+## 6. Restore Procedure (Generic)
 
 All restore operations follow this sequence:
 
@@ -290,7 +345,7 @@ All restore operations follow this sequence:
 
 ---
 
-## 6. Backup Verification Testing
+## 7. Backup Verification Testing
 
 Backups that have not been tested are not backups. Before go-live:
 
@@ -313,7 +368,7 @@ Backups that have not been tested are not backups. Before go-live:
 
 ---
 
-## 7. Responsible Parties
+## 8. Responsible Parties
 
 | Role | Responsibility |
 |---|---|
@@ -324,11 +379,11 @@ Backups that have not been tested are not backups. Before go-live:
 
 ---
 
-## 8. Open Gaps
+## 9. Open Gaps
 
 1. **No backup infrastructure provisioned** — no cloud storage, no cron jobs, no managed backup service confirmed.
 2. **No restore has been tested** — restore procedures are documented but unverified.
-3. **SQLite is the current engine** — no WAL archiving, no replication, no point-in-time recovery.
+3. **PostgreSQL backup automation not yet configured** — must be set up before go-live.
 4. **Off-site / cross-region storage** not configured.
 5. **Backup encryption at rest** not verified.
 6. **Automated backup monitoring** (alert on failure) not configured.

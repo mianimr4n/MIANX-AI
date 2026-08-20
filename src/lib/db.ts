@@ -7,15 +7,21 @@ const globalForPrisma = globalThis as unknown as {
 // Phase 11: Conditional query logging — only in development
 const prismaLogConfig = process.env.NODE_ENV === 'development' ? ['query' as const] : ['error' as const]
 
+// Phase 15: PostgreSQL connection pool for production
+const isPostgres = process.env.DATABASE_URL?.startsWith('postgresql') ?? false
+const connectionPoolUrl = isPostgres
+  ? process.env.DATABASE_URL! + (process.env.DATABASE_URL!.includes('?') ? '&' : '?') +
+    'connection_limit=10&pool_timeout=30'
+  : undefined
+
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: prismaLogConfig,
-    // Phase 11: Connection pool limits for reliability
-    ...(process.env.DATABASE_URL?.startsWith('postgresql') ? {
+    ...(isPostgres && connectionPoolUrl ? {
       datasources: {
         db: {
-          url: process.env.DATABASE_URL,
+          url: connectionPoolUrl,
         },
       },
     } : {}),
