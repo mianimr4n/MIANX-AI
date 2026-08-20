@@ -49,6 +49,9 @@ const SENSITIVE_PATTERNS: RegExp[] = [
   /xox[bpas]-[A-Za-z0-9-]+/g,           // Slack tokens
   /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, // Credit card numbers
   /\b\d{3}-\d{2}-\d{4}\b/g,             // SSN
+  /postgresql:\/\/[^\s]+:[^\s]+@[\S]+/g, // PostgreSQL connection strings with credentials
+  /redis:\/\/?[^\s]+:[^\s]+@[\S]+/g,   // Redis connection strings with credentials
+  /eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}/g, // JWT-like tokens (long matches)
 ]
 
 /**

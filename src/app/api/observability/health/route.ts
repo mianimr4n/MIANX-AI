@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
     const dbLat = Date.now() - t0
     checks.database = { status: dbLat < 500 ? 'ok' : 'degraded', latency_ms: dbLat }
     if (dbLat >= 1000) overallStatus = 'degraded'
-  } catch (err) {
-    checks.database = { status: 'error', latency_ms: -1, details: String(err) }
+  } catch {
+    checks.database = { status: 'error', latency_ms: -1 }
     overallStatus = 'error'
   }
 
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       details: `pending=${pendingJobs}, failed=${failedJobs}`,
     }
     if (!queueOk) overallStatus = 'degraded'
-  } catch (err) {
-    checks.jobs = { status: 'error', latency_ms: -1, details: String(err) }
+  } catch {
+    checks.jobs = { status: 'error', latency_ms: -1 }
   }
 
   // ── Workflow Engine: Check for stuck runs ───────────────────
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       details: stuckRuns > 0 ? `stuck_runs=${stuckRuns}` : undefined,
     }
     if (stuckRuns > 0) overallStatus = 'degraded'
-  } catch (err) {
-    checks.workflows = { status: 'error', latency_ms: -1, details: String(err) }
+  } catch {
+    checks.workflows = { status: 'error', latency_ms: -1 }
   }
 
   // ── P1 Incidents: Platform-level critical check ─────────────
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     status: overallStatus,
     app: 'mianx-ai',
     version: APP_VERSION,
-    phase: 11,
+    phase: 16,
     checks,
  latency_ms: totalLatency,
     timestamp: new Date().toISOString(),

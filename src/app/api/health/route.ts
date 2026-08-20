@@ -27,7 +27,7 @@ export async function GET() {
     status: preflight.ready && dbStatus === 'ok' ? 'healthy' : 'degraded',
     app: 'mianx-ai',
     version: APP_VERSION,
-    phase: 15,
+    phase: 16,
     environment: env,
     uptime: process.uptime ? Math.floor(process.uptime()) : null,
     checks: {
