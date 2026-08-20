@@ -1,0 +1,67 @@
+# MIANX.AI — Production Deployment Workflow
+# Phase 14: Manual approval deployment to production
+#
+# Flow:
+#   push to main → CI quality gates → manual approve → deploy → health verify
+#
+# Prerequisites:
+#   - Repository secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+#   - Server has docker compose installed
+#   - Server has .env.production configured
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types:
+      - completed
+    branches:
+      - main
+
+# Only one deployment at a time
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    # Require CI to pass
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL || 'https://app.mianx.ai' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/mianx-ai
+            git pull origin main
+            docker compose -f docker-compose.production.yml build
+            docker compose -f docker-compose.production.yml up -d
+            echo "Waiting for startup (20s)..."
+            sleep 20
+
+      - name: Health Verification
+        run: |
+          sleep 10
+          curl -sf ${{ vars.DEPLOY_URL || 'http://localhost:3000' }}/api/health \
+            || (echo "Health check failed" && exit 1)
+
+      - name: Notify Rollback on Failure
+        if: failure()
+        run: |
+          echo "DEPLOYMENT FAILED"
+          echo "Manual rollback required. See docs/deployment/05-rollback-runbook.md"
+          echo "Or run: git checkout HEAD~1 && docker compose -f docker-compose.production.yml up -d --build"
