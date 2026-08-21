@@ -122,7 +122,7 @@ export function middleware(request: NextRequest) {
     // Ensure X-Organization-Id is present for API routes
     const orgId = request.headers.get('x-organization-id') || (isDev ? request.headers.get('x-dev-org-id') : null)
     if (!orgId && !isDev) {
-      if (!pathname.startsWith('/api/health') && !pathname.startsWith('/api/domains') && pathname !== '/api/route') {
+      if (!pathname.startsWith('/api/health') && !pathname.startsWith('/api/version') && !pathname.startsWith('/api/domains') && pathname !== '/api/route') {
         return NextResponse.json({ error: 'X-Organization-Id header required', requestId }, { status: 400 })
       }
     }

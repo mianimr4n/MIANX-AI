@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     status: overallStatus,
     app: 'mianx-ai',
     version: APP_VERSION,
-    phase: 16,
+    phase: 17,
     checks,
  latency_ms: totalLatency,
     timestamp: new Date().toISOString(),

@@ -47,7 +47,7 @@ jobs:
       - name: Tenant Isolation Tests
         run: bun run scripts/test-tenant-isolation.ts
 
-      - name: Build
-        run: bun run build
+      - name: Build (standalone)
+        run: bun run build:standalone
         env:
           NODE_ENV: production

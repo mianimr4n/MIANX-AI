@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "prisma generate && next build",
+  "installCommand": "bun install --frozen-lockfile",
+  "git": {
+    "deploymentEnabled": true
+  }
+}

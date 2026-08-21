@@ -18,6 +18,7 @@ import {
   BarChart3, Globe, Users, CreditCard, Settings, Activity,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
+import { APP_VERSION } from '@/lib/constants'
 
 interface NavItem {
   title: string
@@ -80,7 +81,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          v0.8.0 — Phase 8 ✅
+          v{APP_VERSION} — Phase 17 ✅
         </div>
       </SidebarFooter>
       <SidebarRail />

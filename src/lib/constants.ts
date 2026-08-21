@@ -18,7 +18,8 @@ export const PHASES = [
   { id: 8, name: 'Frontend Platform', duration: 'Week 18-22', status: 'completed' as const, focus: 'App shell, design system' },
   { id: 9, name: 'Observability and Ops', duration: 'Week 22-24', status: 'completed' as const, focus: 'Logging, monitoring, alerts' },
   { id: 10, name: 'Poultry OS Domain', duration: 'Week 24-30', status: 'completed' as const, focus: 'Industry modules, agents' },
-  { id: 11, name: 'Production Readiness', duration: 'Week 30-32', status: 'in_progress' as const, focus: 'Security, testing, deploy' },
+  { id: 11, name: 'Production Readiness', duration: 'Week 30-32', status: 'completed' as const, focus: 'Security, testing, deploy' },
+  { id: 17, name: 'Deployment Recovery', duration: 'Week 32-33', status: 'in_progress' as const, focus: 'Vercel fix, version verification' },
 ] as const
 
 export const CORE_TABLES = [

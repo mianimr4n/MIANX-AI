@@ -29,7 +29,7 @@ ENV DATABASE_URL="postgresql://build:build@localhost:5432/build_db"
 
 # Generate Prisma client (PostgreSQL) — no DB connection needed
 RUN bun run db:generate
-RUN bun run build
+RUN bun run build:standalone
 
 # ── Production runner stage ────────────────────────────────
 FROM base AS runner
