@@ -13,9 +13,19 @@ export const dynamic = 'force-dynamic'
 // GET /api/me — Current user info + organizations
 export async function GET(request: NextRequest) {
   try {
-    // Dev mode
+    // Production: require Supabase authentication (never return fake identity)
+    const isProd = process.env.NODE_ENV === 'production'
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (!supabaseUrl) {
+
+    if (isProd && !supabaseUrl) {
+      return NextResponse.json(
+        { error: 'Authentication service not configured' },
+        { status: 503 }
+      )
+    }
+
+    // Development mode: allow dev auth context
+    if (!supabaseUrl && !isProd) {
       const devCtx = await resolveDevAuthContext(request)
       if (!devCtx) {
         return NextResponse.json({
@@ -42,7 +52,7 @@ export async function GET(request: NextRequest) {
       }))
     }
 
-    // Supabase mode
+    // Authenticated mode (Supabase)
     const user = await resolveCurrentUser()
     if (!user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })

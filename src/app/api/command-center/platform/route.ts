@@ -1,10 +1,11 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Command Center: Platform Overview
-// Shows availability, request volume, error rate, latency, active incidents,
-// deployment health, and business health KPIs
+// Phase 19: Requires authentication + organization context.
+//   Platform-wide metrics are sensitive and must not be exposed anonymously.
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from 'next/server'
+import { withAuth } from '@/core/authorization'
 import { db } from '@/lib/db'
 import { metrics } from '@/core/observability'
 import { getActiveAlerts } from '@/core/observability/alerts'
@@ -13,13 +14,11 @@ import { getSLOStatus } from '@/core/observability/slo'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export const GET = withAuth(async () => {
   const startTime = Date.now()
 
-  // Platform health metrics (in-memory)
- const metricsSummary = metrics.getSummary()
+  const metricsSummary = metrics.getSummary()
 
-  // Business health KPIs from DB
   let businessHealth = {
     active_organizations: 0,
     total_memberships: 0,
@@ -50,16 +49,12 @@ export async function GET() {
       total_invoices: invoices,
     }
   } catch {
-    // DB query may fail in dev
+    // DB query may fail
   }
 
-  // Active alerts and incidents
   const activeAlerts = getActiveAlerts()
   const activeIncidents = listIncidents().filter(i => i.status !== 'resolved')
-
-  // SLO status
   const sloStatus = getSLOStatus()
-
   const latency = Date.now() - startTime
 
   return NextResponse.json({
@@ -93,4 +88,4 @@ export async function GET() {
     latency_ms: latency,
     timestamp: new Date().toISOString(),
   })
-}
+})

@@ -1,12 +1,14 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Global Domains API
 // Platform-level: domains are NOT tenant-scoped (they're global manifests)
+// Phase 19: GET is public (domain discovery). POST requires authentication.
 // ══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createDomain, listDomains } from '@/core/domain'
 import { apiEnvelope } from '@/core/tenancy/utils'
 import type { DomainManifest } from '@/core/domain'
+import { withAuth, withRateLimit } from '@/core/authorization'
 
 /** GET /api/domains — List all global domains */
 export async function GET(request: NextRequest) {
@@ -27,8 +29,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/domains — Create a new global domain */
-export async function POST(request: NextRequest) {
+/** POST /api/domains — Create a new global domain (requires auth + rate limit) */
+export const POST = withRateLimit(5, 60_000)(withAuth(async (request, _ctx) => {
   try {
     const body = await request.json()
     const { name, slug, version, description, manifest, status } = body
@@ -58,4 +60,4 @@ export async function POST(request: NextRequest) {
     console.error('[POST /api/domains]', error)
     return NextResponse.json(apiEnvelope(null, 'Invalid request body'), { status: 400 })
   }
-}
+}))
