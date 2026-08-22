@@ -10,13 +10,21 @@ import type { DomainManifest } from '@/core/domain'
 
 /** GET /api/domains — List all global domains */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const status = searchParams.get('status') || undefined
-  const includeModules = searchParams.get('include') === 'modules'
+  try {
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status') || undefined
+    const includeModules = searchParams.get('include') === 'modules'
 
-  const domains = await listDomains({ status, includeModules })
+    const domains = await listDomains({ status, includeModules })
 
-  return NextResponse.json(apiEnvelope(domains))
+    return NextResponse.json(apiEnvelope(domains))
+  } catch (error) {
+    console.error('[GET /api/domains]', error)
+    return NextResponse.json(
+      apiEnvelope(null, 'Failed to fetch domains'),
+      { status: 500 }
+    )
+  }
 }
 
 /** POST /api/domains — Create a new global domain */

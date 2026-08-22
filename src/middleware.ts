@@ -113,7 +113,20 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 5. Block requests to API routes without organization header (except health/public)
+  // 5. Block requests to API routes without organization header (except health/public/bootstrap)
+  // Phase 18: /api/organizations must be exempt — users need to list organizations
+  //   before they can select one (bootstrap / chicken-and-egg).
+  //   /api/me is exempt — user profile is not org-scoped.
+  const ORG_EXEMPT_PREFIXES = [
+    '/api/health',
+    '/api/observability/health',
+    '/api/version',
+    '/api/domains',
+    '/api/organizations',
+    '/api/me',
+  ]
+  const isOrgExempt = ORG_EXEMPT_PREFIXES.some(p => pathname.startsWith(p)) || pathname === '/api/route'
+
   if (pathname.startsWith('/api/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/observability/health')) {
     // Allow OPTIONS preflight
     if (request.method === 'OPTIONS') {
@@ -121,10 +134,8 @@ export function middleware(request: NextRequest) {
     }
     // Ensure X-Organization-Id is present for API routes
     const orgId = request.headers.get('x-organization-id') || (isDev ? request.headers.get('x-dev-org-id') : null)
-    if (!orgId && !isDev) {
-      if (!pathname.startsWith('/api/health') && !pathname.startsWith('/api/version') && !pathname.startsWith('/api/domains') && pathname !== '/api/route') {
-        return NextResponse.json({ error: 'X-Organization-Id header required', requestId }, { status: 400 })
-      }
+    if (!orgId && !isDev && !isOrgExempt) {
+      return NextResponse.json({ error: 'X-Organization-Id header required', requestId }, { status: 400 })
     }
   }
 

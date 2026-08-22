@@ -321,7 +321,7 @@ function HomeDashboard() {
               { name: 'Domain Engine', tech: 'Manifest Plugins' },
               { name: 'AI Core', tech: 'Provider-agnostic' },
               { name: 'Automation', tech: 'Events + Workflows' },
-              { name: 'Database', tech: 'SQLite + Prisma ORM' },
+              { name: 'Database', tech: 'PostgreSQL + Prisma ORM' },
               { name: 'Billing', tech: 'Plans + Usage Metering' },
             ].map((layer) => (
               <div key={layer.name} className="p-3 rounded-lg border">
