@@ -51,13 +51,16 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const { data: permissions = [] } = useQuery<string[]>({
     queryKey: ['permissions', activeOrganization?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/permissions?organizationId=${activeOrganization!.id}`)
+      const res = await fetch('/api/permissions', {
+        headers: { 'X-Organization-Id': activeOrganization!.id },
+      })
       const json = await res.json()
-      // API returns { data: [...], meta: {...} }
+      // API returns { data: { all, grouped, userPermissions }, meta }
+      if (json.data?.userPermissions) return json.data.userPermissions
       if (Array.isArray(json)) return json
-      // Permissions data is array of permission key strings
       const perms = json.data ?? []
-      return perms.map((p: string | { key: string }) => typeof p === 'string' ? p : p.key)
+      if (Array.isArray(perms)) return perms.map((p: string | { key: string }) => typeof p === 'string' ? p : p.key)
+      return []
     },
     enabled: !!activeOrganization,
   })

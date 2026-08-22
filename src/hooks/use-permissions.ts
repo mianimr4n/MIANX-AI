@@ -23,5 +23,9 @@ export function usePermissions() {
 
   const hasAnyPermission = (keys: string[]): boolean => keys.some(hasPermission)
 
-  return { permissions, hasPermission, hasAnyPermission, activeOrganization }
+  // Permissions have loaded when an org is selected and the permissions array has been fetched
+  // (even if empty, meaning the user has no permissions yet)
+  const permissionsLoaded = !!activeOrganization
+
+  return { permissions, hasPermission, hasAnyPermission, activeOrganization, permissionsLoaded }
 }

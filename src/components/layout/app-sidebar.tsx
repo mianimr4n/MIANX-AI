@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   Sidebar,
   SidebarContent,
@@ -25,36 +27,44 @@ interface NavItem {
   icon: React.ElementType
   permission?: string
   href: string
-  active?: boolean
 }
 
 const navItems: NavItem[] = [
-  { title: 'Home', icon: Home, href: '#home', active: true },
-  { title: 'My Business', icon: Building2, permission: 'organization.view', href: '#business' },
-  { title: 'Domains', icon: Blocks, permission: 'domain.view', href: '#domains' },
-  { title: 'AI', icon: Bot, permission: 'ai.conversation.view', href: '#ai' },
-  { title: 'Automations', icon: Workflow, permission: 'workflow.view', href: '#automations' },
-  { title: 'Analytics', icon: BarChart3, permission: 'organization.view', href: '#analytics' },
-  { title: 'Integrations', icon: Globe, permission: 'integration.view', href: '#integrations' },
-  { title: 'Team', icon: Users, permission: 'membership.view', href: '#team' },
-  { title: 'Billing', icon: CreditCard, permission: 'billing.view', href: '#billing' },
-  { title: 'Settings', icon: Settings, permission: 'organization.update', href: '#settings' },
+  { title: 'Home', icon: Home, href: '/' },
+  { title: 'My Business', icon: Building2, permission: 'organization.view', href: '/business' },
+  { title: 'Domains', icon: Blocks, permission: 'domain.view', href: '/domains' },
+  { title: 'AI', icon: Bot, permission: 'ai.conversation.view', href: '/ai' },
+  { title: 'Automations', icon: Workflow, permission: 'workflow.view', href: '/automations' },
+  { title: 'Analytics', icon: BarChart3, permission: 'organization.view', href: '/analytics' },
+  { title: 'Integrations', icon: Globe, permission: 'integration.view', href: '/integrations' },
+  { title: 'Team', icon: Users, permission: 'membership.view', href: '/team' },
+  { title: 'Billing', icon: CreditCard, permission: 'billing.view', href: '/billing' },
+  { title: 'Settings', icon: Settings, permission: 'organization.update', href: '/settings' },
 ]
 
 export function AppSidebar() {
-  const { hasPermission, permissions } = usePermissions()
+  const { hasPermission, permissions, activeOrganization, permissionsLoaded } = usePermissions()
+  const pathname = usePathname()
 
-  const visibleItems = navItems.filter(
-    (item) => !item.permission || permissions.length === 0 || hasPermission(item.permission)
-  )
+  // - Items without permission requirements always show (e.g. Home)
+  // - Items with permission requirements show only when:
+  //   a) No organization is selected yet (user needs to see what's available)
+  //   b) Organization is selected, permissions loaded, and user has the permission
+  // - Hide permission-gated items if org is selected but permissions are still loading
+  const visibleItems = navItems.filter((item) => {
+    if (!item.permission) return true
+    if (!activeOrganization) return true
+    if (!permissionsLoaded) return false
+    return hasPermission(item.permission)
+  })
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-2">
-        <div className="flex items-center gap-2 px-2 py-1.5">
+        <Link href="/" className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded-md transition-colors">
           <Activity className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold group-data-[collapsible=icon]:hidden">Mianx.ai</span>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -65,13 +75,13 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={item.active}
+                    isActive={pathname === item.href}
                     tooltip={item.title}
                   >
-                    <a href={item.href}>
+                    <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -81,7 +91,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          v{APP_VERSION} — Phase 17 ✅
+          v{APP_VERSION} — Phase 20
         </div>
       </SidebarFooter>
       <SidebarRail />
