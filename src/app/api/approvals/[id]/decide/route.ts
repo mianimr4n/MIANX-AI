@@ -1,7 +1,7 @@
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // MIANX.AI — Approval Decide API
 // POST   /api/approvals/:id/decide — Decide (approve/reject) an approval
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuthParams, type AuthContext } from '@/core/authorization'
@@ -9,6 +9,15 @@ import { decideApproval, getApproval } from '@/core/automation'
 import { apiEnvelope } from '@/core/tenancy/utils'
 
 export const dynamic = 'force-dynamic'
+
+/** Safely parse JSON, returning fallback on failure */
+function safeJsonParse(raw: string, fallback: unknown = null): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return fallback
+  }
+}
 
 const VALID_DECISIONS = ['approved', 'rejected'] as const
 type ValidDecision = (typeof VALID_DECISIONS)[number]
@@ -64,7 +73,7 @@ export const POST = withAuthParams(async (request: NextRequest, ctx: AuthContext
 
     return NextResponse.json(apiEnvelope({
       ...updated,
-      requestedAction: JSON.parse(updated.requestedAction),
+      requestedAction: safeJsonParse(updated.requestedAction),
     }))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

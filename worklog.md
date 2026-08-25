@@ -377,3 +377,30 @@ Stage Summary:
 - Commit 80a782d ready locally, 2 commits ahead of origin/main
 - Push requires GitHub authentication setup (SSH key or PAT)
 - All Phase 13 security-critical conditions are RESOLVED
+
+---
+Task ID: Phase-22
+Agent: Super Z (main)
+Task: Phase 22 — Close 9 unauthenticated routes + billing IDOR + provision roles build fix
+
+Work Log:
+- Verified origin/main baseline at ad49352 (Phase 21)
+- Discovered previous Phase 22 work (cf05209) still in local git history (not lost)
+- Verified all 20 changed files from cf05209 — 9 severe routes + 6 medium fixes correct
+- Found 2 additional issues: decide/route.ts bare JSON.parse, env.ts missing PLATFORM_ADMIN_EMAILS/OBSERVABILITY_HEALTH_SECRET
+- Fixed approvals/[id]/decide/route.ts: JSON.parse → safeJsonParse (crash prevention)
+- Extended src/lib/env.ts Zod schema with PLATFORM_ADMIN_EMAILS + OBSERVABILITY_HEALTH_SECRET
+- Updated .env.example with new env var documentation
+- Soft-reset to origin/main, squashed all work into single clean commit
+- Quality gates: lint 0 errors, tsc 0 errors, build clean, 56/56 tenant isolation tests pass, no secrets in diff
+- Committed as 0eb6b56, pushed to origin/main successfully
+- Verified: git ls-remote origin main shows 0eb6b56 (not ad49352)
+- Verified key files on remote: platform-admin.ts exists, organizations/[id] has withAuthParams, ai/models has withAuth
+
+Stage Summary:
+- 9 severe unauthenticated routes CLOSED (all return 401 without auth, 403 on cross-tenant)
+- 6 medium issues FIXED (billing IDOR, orgs GET, AI workspace headers, invitations roleId, approvals JSON.parse, provision-roles TS)
+- 2 additional fixes: decide/route.ts safeJsonParse, env.ts schema extension
+- New files: src/lib/platform-admin.ts, src/types/ioredis.d.ts
+- 20 files changed, 447 insertions, 173 deletions
+- PUSHED to origin/main as 0eb6b56 — DEFINITION OF DONE MET ✅

@@ -33,6 +33,10 @@ const envSchema = z.object({
 
   // Phase 15: Redis (optional — distributed rate limiting)
   REDIS_URL: z.string().optional(),
+
+  // Phase 22: Platform admin emails (comma-separated) and health-check shared secret
+  PLATFORM_ADMIN_EMAILS: z.string().optional(),
+  OBSERVABILITY_HEALTH_SECRET: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -62,6 +66,8 @@ export function getEnv(): Env | null {
     AI_DAILY_TOKEN_LIMIT: process.env.AI_DAILY_TOKEN_LIMIT,
     AI_DAILY_REQUEST_LIMIT: process.env.AI_DAILY_REQUEST_LIMIT,
     REDIS_URL: process.env.REDIS_URL,
+    PLATFORM_ADMIN_EMAILS: process.env.PLATFORM_ADMIN_EMAILS,
+    OBSERVABILITY_HEALTH_SECRET: process.env.OBSERVABILITY_HEALTH_SECRET,
   })
 
   if (!result.success) {
