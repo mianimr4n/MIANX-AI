@@ -91,7 +91,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          v{APP_VERSION} — Phase 20
+          v{APP_VERSION}
         </div>
       </SidebarFooter>
       <SidebarRail />
