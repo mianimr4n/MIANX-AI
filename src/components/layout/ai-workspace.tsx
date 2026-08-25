@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,6 +54,17 @@ export function AIWorkspace({ open, onOpenChange }: AIWorkspaceProps) {
     if (open) inputRef.current?.focus()
   }, [open])
 
+  const getOrgHeader = useCallback((): Record<string, string> => {
+    // Read the active organization ID from sessionStorage (set by organization-provider)
+    if (typeof window !== 'undefined') {
+      const activeOrgId = sessionStorage.getItem('mianx-active-org-id')
+      if (activeOrgId) {
+        return { 'X-Organization-Id': activeOrgId }
+      }
+    }
+    return {}
+  }, [])
+
   const sendMessage = async () => {
     if (!input.trim() || isProcessing) return
     const userMessage: AIMessage = {
@@ -70,7 +81,10 @@ export function AIWorkspace({ open, onOpenChange }: AIWorkspaceProps) {
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getOrgHeader(),
+        },
         body: JSON.stringify({ message: userMessage.content }),
       })
       setCurrentToolStatus('retrieving')
@@ -103,6 +117,16 @@ export function AIWorkspace({ open, onOpenChange }: AIWorkspaceProps) {
       setTimeout(() => setCurrentToolStatus(null), 1500)
     }
   }
+
+  const handleActionDecision = useCallback((messageId: string, decision: 'approved' | 'rejected') => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? { ...msg, actionStatus: decision === 'approved' ? 'executing' : 'failed' as const, content: decision === 'approved' ? 'Action approved. Executing...' : 'Action rejected.' }
+          : msg
+      )
+    )
+  }, [])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -179,8 +203,8 @@ export function AIWorkspace({ open, onOpenChange }: AIWorkspaceProps) {
                     </Badge>
                     {msg.actionStatus === 'proposed' && (
                       <>
-                        <Button size="sm" className="h-6 text-xs">Approve</Button>
-                        <Button size="sm" variant="outline" className="h-6 text-xs">Reject</Button>
+                        <Button size="sm" className="h-6 text-xs" onClick={() => handleActionDecision(msg.id, 'approved')}>Approve</Button>
+                        <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => handleActionDecision(msg.id, 'rejected')}>Reject</Button>
                       </>
                     )}
                   </div>

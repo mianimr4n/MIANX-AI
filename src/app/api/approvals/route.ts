@@ -10,13 +10,22 @@ import { apiEnvelope } from '@/core/tenancy/utils'
 
 export const dynamic = 'force-dynamic'
 
+/** Safely parse JSON, returning fallback on failure */
+function safeJsonParse(raw: string, fallback: unknown = null): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return fallback
+  }
+}
+
 // GET /api/approvals — List pending approvals for organization
 export const GET = withAuth(async (_request: NextRequest, ctx: AuthContext) => {
   const approvals = await getPendingApprovals(ctx.organizationId)
 
   const parsed = approvals.map((a) => ({
     ...a,
-    requestedAction: JSON.parse(a.requestedAction),
+    requestedAction: safeJsonParse(a.requestedAction),
   }))
 
   return NextResponse.json(apiEnvelope(parsed))

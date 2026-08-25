@@ -1,15 +1,17 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Observability: Incidents API
 // Create, list, and transition incidents
+// Phase 22: All methods require auth. Create/transition require manage.
 // ══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createIncident, listIncidents, transitionIncident, calculateMTTR } from '@/core/observability'
 import type { IncidentStatus, IncidentSeverity } from '@/core/observability'
+import { withAuth } from '@/core/authorization'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest) => {
   const { searchParams } = request.nextUrl
   const status = searchParams.get('status') as IncidentStatus | null
   const severity = searchParams.get('severity') as IncidentSeverity | null
@@ -26,9 +28,9 @@ export async function GET(request: NextRequest) {
     mttr_ms,
     total: incidents.length,
   })
-}
+}, { anyPermission: ['observability.incidents.view', 'observability.incidents.manage'] })
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest) => {
   const body = await request.json()
 
   // Create incident
@@ -65,4 +67,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ error: 'Provide title (create) or incident_id + new_status (transition)' }, { status: 400 })
-}
+}, { permission: 'observability.incidents.manage' })

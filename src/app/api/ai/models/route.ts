@@ -1,14 +1,15 @@
 /**
  * MIANX.AI — AI Models API
  * GET /api/ai/models — List available models and configured providers
+ * Phase 22: Requires auth + valid membership. No anonymous provider leak.
  */
 
 import { NextResponse } from 'next/server'
 import { listModels, getConfiguredProviders } from '@/ai'
 import { apiEnvelope } from '@/core/tenancy/utils'
+import { withAuth } from '@/core/authorization'
 
-/** GET /api/ai/models — List all registered models */
-export async function GET() {
+export const GET = withAuth(async () => {
   const models = listModels()
   const providers = getConfiguredProviders()
 
@@ -27,4 +28,4 @@ export async function GET() {
       modelCount: p.models.length,
     })),
   }))
-}
+}, { permission: 'ai.chat' })

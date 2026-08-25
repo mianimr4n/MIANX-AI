@@ -1,15 +1,17 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Observability: AI Usage Dashboard API
 // Per-organization cost visibility, quality, and safety signals
+// Phase 22: Requires auth. Org usage scoped to caller's org (IDOR fix).
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from 'next/server'
 import { getAICostSummary } from '@/core/observability'
 import { db } from '@/lib/db'
+import { withAuth, type AuthContext } from '@/core/authorization'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export const GET = withAuth(async (_request, ctx: AuthContext) => {
   const summary = getAICostSummary()
 
   // Per-model cost from in-memory metrics
@@ -33,7 +35,7 @@ export async function GET() {
     }
   }
 
-  // Organization-level AI usage from database
+  // Organization-level AI usage — scoped to caller's org only (IDOR fix)
   let orgUsage: Array<{
     organization_id: string
     total_messages: number
@@ -43,6 +45,7 @@ export async function GET() {
   try {
     const conversations = await db.conversation.groupBy({
       by: ['organizationId'],
+      where: { organizationId: ctx.organizationId },
       _count: { id: true },
     })
 
@@ -77,4 +80,4 @@ export async function GET() {
     organization_usage: orgUsage,
     collected_at: new Date().toISOString(),
   })
-}
+}, { permission: 'ai.usage.admin' })

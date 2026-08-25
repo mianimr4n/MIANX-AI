@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/core/authorization/middleware'
+import { db } from '@/lib/db'
 import { createSubscription, listSubscriptions, getSubscriptionByOrg, upgradeSubscription, cancelSubscription, transitionSubscription, handlePaymentFailed, handlePaymentSucceeded, checkDowngradeSafety, downgradeSubscription } from '@/core/billing/subscriptions'
 
 export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
@@ -30,21 +31,39 @@ export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
       const result = await createSubscription(orgId, params.planVersionId, { ...params, organizationId: undefined })
       return NextResponse.json({ data: result }, { status: 201 })
     }
-    case 'cancel':
+    case 'cancel': {
+      // IDOR fix: verify subscription belongs to this org
+      const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
+      if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       return NextResponse.json({ data: await cancelSubscription(params.subscriptionId, params.immediate) })
-    case 'upgrade':
+    }
+    case 'upgrade': {
+      const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
+      if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       return NextResponse.json({ data: await upgradeSubscription(params.subscriptionId, params.planVersionId) })
+    }
     case 'downgrade': {
+      const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
+      if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       const check = await checkDowngradeSafety(params.subscriptionId, params.planVersionId)
       if (!check.canDowngrade) return NextResponse.json({ error: 'Cannot downgrade', conflicts: check.conflicts }, { status: 400 })
       return NextResponse.json({ data: await downgradeSubscription(params.subscriptionId, params.planVersionId) })
     }
-    case 'transition':
+    case 'transition': {
+      const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
+      if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       return NextResponse.json({ data: await transitionSubscription(params.subscriptionId, params.newState, params.metadata) })
-    case 'payment_failed':
+    }
+    case 'payment_failed': {
+      const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
+      if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       return NextResponse.json({ data: await handlePaymentFailed(params.subscriptionId) })
-    case 'payment_succeeded':
+    }
+    case 'payment_succeeded': {
+      const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
+      if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       return NextResponse.json({ data: await handlePaymentSucceeded(params.subscriptionId) })
+    }
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   }

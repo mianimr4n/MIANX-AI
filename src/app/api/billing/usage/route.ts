@@ -37,13 +37,19 @@ export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
   return NextResponse.json({ data })
 }, { permission: 'billing.usage.view' })
 
-export const POST = withAuth(async (req: NextRequest) => {
+export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
   const body = await req.json()
   const { action, ...params } = body
 
   switch (action) {
-    case 'record':
-      return NextResponse.json({ data: await recordUsage(params) }, { status: 201 })
+    case 'record': {
+      // IDOR fix: force organizationId from auth context, never from client body
+      const forcedParams = {
+        ...params,
+        organizationId: ctx.organizationId,
+      }
+      return NextResponse.json({ data: await recordUsage(forcedParams) }, { status: 201 })
+    }
     case 'ensure_meters':
       return NextResponse.json({ data: await ensureDefaultMeters() })
     default:

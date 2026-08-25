@@ -1,25 +1,68 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Enhanced Health Checks (Liveness / Readiness / Dependencies)
-// Separates liveness (process alive) from readiness (can serve traffic)
+// ══════════════════════════════════════════════════════════════════
+//
+// DESIGN DECISION (Phase 22):
+//   ?type=liveness  →  OPEN (no auth). For load balancers / Uptime checks.
+//                       Returns only { status: 'alive', timestamp }.
+//   ?type=full      →  AUTH REQUIRED. Returns DB latency, job queue stats,
+//                       stuck workflows, P1 status, app version.
+//   ?secret=<token> →  Alternative: shared-secret bypass for internal probes
+//                       that cannot send Supabase cookies (e.g. Pingdom).
+//                       Secret: OBSERVABILITY_HEALTH_SECRET env var.
 // ══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hasP1Active } from '@/core/observability'
 import { APP_VERSION } from '@/lib/constants'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+
+/** Verify auth for the full health check */
+async function requireHealthAuth(request: NextRequest): Promise<boolean> {
+  // Shared-secret bypass for internal probes
+  const secret = process.env.OBSERVABILITY_HEALTH_SECRET
+  if (secret) {
+    const provided = request.headers.get('x-health-secret')
+    if (provided === secret) return true
+  }
+
+  // Supabase auth
+  const supabase = await createServerSupabaseClient()
+  if (supabase) {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (!error && user) return true
+  }
+
+  return false
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const checkType = searchParams.get('type') || 'full'
 
+  // ── Liveness: Always open for load balancers ──────────────
+  if (checkType === 'liveness') {
+    return NextResponse.json({
+      status: 'alive',
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  // ── Full readiness: Requires auth ──────────────────────────
+  const isAuthorized = await requireHealthAuth(request)
+  if (!isAuthorized) {
+    return NextResponse.json(
+      { error: 'Authentication required for full health check' },
+      { status: 401 }
+    )
+  }
+
   const startTime = Date.now()
   const checks: Record<string, { status: string; latency_ms: number; details?: string }> = {}
   let overallStatus = 'healthy'
-
-  // ── Liveness: Process is alive ─────────────────────────────
-  checks.process = { status: 'ok', latency_ms: 0 }
 
   // ── Database: Readiness check ──────────────────────────────
   try {
@@ -78,23 +121,14 @@ export async function GET(request: NextRequest) {
   }
   if (hasP1Active()) overallStatus = 'degraded'
 
-  // ── Readiness vs Liveness ──────────────────────────────────
-  if (checkType === 'liveness') {
-    return NextResponse.json({
-      status: 'alive',
-      timestamp: new Date().toISOString(),
-    })
-  }
-
   const totalLatency = Date.now() - startTime
 
   return NextResponse.json({
     status: overallStatus,
     app: 'mianx-ai',
     version: APP_VERSION,
-    phase: 17,
     checks,
- latency_ms: totalLatency,
+    latency_ms: totalLatency,
     timestamp: new Date().toISOString(),
   })
 }

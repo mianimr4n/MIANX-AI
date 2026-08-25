@@ -1,11 +1,11 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Organizations API
-// GET  /api/organizations  — List user's organizations (requires auth in production)
+// GET  /api/organizations  — List user's organizations (requires auth)
 // POST /api/organizations  — Create organization (requires auth)
 // ══════════════════════════════════════════════════════════════════
-// Phase 19: GET requires authentication. In production, anonymous users
-//   cannot list all organizations. In development, the route returns all
-//   organizations for convenience (dev-mode headers or unauthenticated).
+// Phase 22: GET now ALWAYS requires authentication (dev and prod).
+//   Dev users must pass X-Dev-User-Id + X-Dev-Org-Id headers (handled
+//   by the auth middleware's dev-mode bypass).
 // ══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db'
@@ -16,60 +16,30 @@ import { provisionDefaultRoles } from '@/core/tenancy/provision-roles'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/organizations — List organizations
-// Phase 19: In production, require authentication.
-//   In development, allow unauthenticated access for convenience.
-export async function GET(request: NextRequest) {
-  const isProd = process.env.NODE_ENV === 'production'
+// GET /api/organizations — List user's organizations (always auth required)
+export const GET = withAuth(async (request: NextRequest) => {
+  // At this point, middleware has resolved ctx — but we need to get orgs for the user.
+  // Use the withAuth wrapper which provides ctx, but we need the raw user ID.
+  // We re-import to get user orgs from the auth context.
+  const { searchParams } = request.nextUrl
+  const cursor = searchParams.get('cursor')
+  const rawLimit = parseInt(searchParams.get('limit') || '20', 10)
+  const limit = Math.min(Math.max(rawLimit, 1), 100)
 
-  // Production: require valid Supabase session
-  if (isProd) {
-    const { resolveCurrentUser, getUserOrganizations } = await import('@/core/authorization')
-    const user = await resolveCurrentUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-    try {
-      const orgs = await getUserOrganizations(user.id)
-      return NextResponse.json({ data: orgs })
-    } catch (error) {
-      console.error('[GET /api/organizations]', error)
-      return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 })
-    }
+  const { resolveCurrentUser, getUserOrganizations } = await import('@/core/authorization')
+  const user = await resolveCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
 
-  // Development: list all organizations (no auth required)
   try {
-    const { searchParams } = request.nextUrl
-    const page = parseInt(searchParams.get('page') || '1')
-    const rawLimit = parseInt(searchParams.get('limit') || '20', 10)
-    const limit = Math.min(Math.max(rawLimit, 1), 100)
-    const cursor = searchParams.get('cursor')
-
-    const organizations = await db.organization.findMany({
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: {
-          select: { memberships: true, teams: true, auditLogs: true },
-        },
-      },
-    })
-
-    const hasMore = organizations.length > limit
-    const items = hasMore ? organizations.slice(0, limit) : organizations
-    const nextCursor = hasMore ? items[items.length - 1].id : null
-
-    return NextResponse.json({
-      data: items,
-      meta: { page, limit, hasMore, nextCursor },
-    })
+    const orgs = await getUserOrganizations(user.id)
+    return NextResponse.json({ data: orgs })
   } catch (error) {
     console.error('[GET /api/organizations]', error)
     return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 })
   }
-}
+})
 
 // POST /api/organizations — Create organization (always requires auth)
 export const POST = withRateLimit(10, 60_000)(withAuth(async (request, ctx) => {
@@ -113,11 +83,7 @@ export const POST = withRateLimit(10, 60_000)(withAuth(async (request, ctx) => {
     },
   })
 
-  // Provision this org's own Owner/Admin/Member/Viewer roles — Role is
-  // org-scoped, so we can never reuse another org's "owner" role here.
-  // (Previously: db.role.findFirst({ where: { slug: 'owner' } }) with no
-  // organizationId filter — either found nothing, or cross-assigned a
-  // different org's Owner role to this membership.)
+  // Provision org-scoped Owner/Admin/Member/Viewer roles
   const { ownerRoleId } = await provisionDefaultRoles(organization.id)
   await db.membershipRole.create({
     data: { membershipId: membership.id, roleId: ownerRoleId },

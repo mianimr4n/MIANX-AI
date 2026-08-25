@@ -114,9 +114,23 @@ export const POST = withAuth(async (request: NextRequest, ctx: AuthContext) => {
   })
 
   // Assign default role (member) if no specific role provided
-  const targetRoleId = roleId || (await db.role.findFirst({
-    where: { organizationId: ctx.organizationId, slug: 'member' },
-  }))?.id
+  let targetRoleId = roleId
+  if (targetRoleId) {
+    // Validate roleId belongs to this organization (prevent cross-org role assignment)
+    const roleExists = await db.role.findFirst({
+      where: { id: targetRoleId, organizationId: ctx.organizationId },
+    })
+    if (!roleExists) {
+      return NextResponse.json(
+        { error: 'Role not found in this organization' },
+        { status: 400 }
+      )
+    }
+  } else {
+    targetRoleId = (await db.role.findFirst({
+      where: { organizationId: ctx.organizationId, slug: 'member' },
+    }))?.id
+  }
 
   if (targetRoleId) {
     await db.membershipRole.create({

@@ -62,8 +62,7 @@ export async function provisionDefaultRoles(organizationId: string): Promise<Pro
         ...adminPerms.map(p => ({ roleId: adminRole.id, permissionId: p.id })),
         ...memberPerms.map(p => ({ roleId: memberRole.id, permissionId: p.id })),
         ...viewOnly.map(p => ({ roleId: viewerRole.id, permissionId: p.id })),
-      ],
-      skipDuplicates: true,
+      ] as { roleId: string; permissionId: string }[],
     })
   }
 
