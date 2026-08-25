@@ -24,8 +24,18 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime connection — should point at Supabase's pooled connection
+  // (port 6543, *.pooler.supabase.com) with `?pgbouncer=true` appended.
+  // That flag tells Prisma to skip prepared-statement caching, which
+  // PgBouncer's transaction-pooling mode cannot support (causes
+  // "prepared statement already exists" errors under concurrent
+  // serverless invocations otherwise).
+  url       = env("DATABASE_URL")
+  // Migrations / introspection — must bypass the pooler entirely
+  // (port 5432, direct connection). `prisma migrate deploy` and
+  // `prisma db push` use this automatically when present.
+  directUrl = env("DIRECT_URL")
 }
 
 // ── ENUMS ──────────────────────────────────────────────────────

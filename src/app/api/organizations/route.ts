@@ -12,6 +12,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withRateLimit } from '@/core/authorization'
 import { slugify } from '@/core/tenancy/utils'
+import { provisionDefaultRoles } from '@/core/tenancy/provision-roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,15 +113,15 @@ export const POST = withRateLimit(10, 60_000)(withAuth(async (request, ctx) => {
     },
   })
 
-  // Assign owner role
-  const ownerRole = await db.role.findFirst({
-    where: { slug: 'owner' },
+  // Provision this org's own Owner/Admin/Member/Viewer roles — Role is
+  // org-scoped, so we can never reuse another org's "owner" role here.
+  // (Previously: db.role.findFirst({ where: { slug: 'owner' } }) with no
+  // organizationId filter — either found nothing, or cross-assigned a
+  // different org's Owner role to this membership.)
+  const { ownerRoleId } = await provisionDefaultRoles(organization.id)
+  await db.membershipRole.create({
+    data: { membershipId: membership.id, roleId: ownerRoleId },
   })
-  if (ownerRole) {
-    await db.membershipRole.create({
-      data: { membershipId: membership.id, roleId: ownerRole.id },
-    })
-  }
 
   return NextResponse.json({ data: organization }, { status: 201 })
 }))
