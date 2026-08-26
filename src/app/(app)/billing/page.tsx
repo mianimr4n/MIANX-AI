@@ -14,11 +14,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { CreditCard, Receipt, Zap, TrendingUp, Check, Loader2, ArrowUpRight } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
-type FeatureItem = { name: string; key: string; description?: string | null; type: string }
 type PlanData = {
   id: string; name: string; status: string; billingCycle?: string
   versions?: { id: string; version: number; status: string; priceMonthly: number; priceAnnual: number
-    features: string | FeatureItem[] }[]
+    features: { feature: { name: string; key: string; description?: string | null; type: string } }[] }[]
 }
 
 type SubscriptionData = {
@@ -53,17 +52,7 @@ function PlanCard({ plan, isCurrent, onSelect }: {
   const monthlyPrice = isAnnual
     ? Math.round(latestVersion.priceAnnual / 12)
     : latestVersion.priceMonthly
-  // features may be a JSON string from Prisma or already parsed
-  let features: FeatureItem[] = []
-  try {
-    const raw = latestVersion.features
-    if (typeof raw === 'string') {
-      const parsed = JSON.parse(raw)
-      features = Array.isArray(parsed) ? parsed.map((f: any) => f.feature ?? f) : []
-    } else if (Array.isArray(raw)) {
-      features = raw.map((f: any) => f.feature ?? f)
-    }
-  } catch { /* skip */ }
+  const features = latestVersion.features?.map((f) => f.feature) || []
 
   return (
     <Card className={`relative flex flex-col ${isCurrent ? 'border-primary shadow-sm' : ''}`}>
@@ -150,9 +139,7 @@ export default function BillingPage() {
         body: JSON.stringify({ action: 'upgrade', subscriptionId: subscription.id, planVersionId: versionId }),
       })
       if (res.ok) fetchAll()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to upgrade plan')
-    } finally {
+    } catch { /* silent */ } finally {
       setUpgrading(false)
     }
   }

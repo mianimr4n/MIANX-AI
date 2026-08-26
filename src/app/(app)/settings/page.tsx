@@ -238,7 +238,7 @@ export default function SettingsPage() {
         method: 'DELETE',
       })
       if (res.ok) {
-        window.location.href = '/app'
+        window.location.href = '/'
       }
     } catch { /* silent */ } finally {
       setArchiving(false)
@@ -303,7 +303,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Manage API keys and webhooks from the <a href="/app/integrations" className="text-primary underline">Integrations</a> page.
+                Manage API keys and webhooks from the <a href="/integrations" className="text-primary underline">Integrations</a> page.
               </p>
             </CardContent>
           </Card>

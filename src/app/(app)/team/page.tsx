@@ -204,9 +204,7 @@ export default function TeamPage() {
     try {
       await orgFetch(activeOrganization.id, `/api/memberships/${membershipId}`, { method: 'DELETE' })
       setMembers((prev) => prev.filter((m) => m.id !== membershipId))
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove member')
-    } finally {
+    } catch { /* silent */ } finally {
       setRemoving(null)
     }
   }

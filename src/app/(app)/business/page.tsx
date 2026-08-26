@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/composite/empty-state'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOrganization } from '@/providers/organization-provider'
 import { useRouter } from 'next/navigation'
-import { Building2, Settings, Users, Blocks, Calendar } from 'lucide-react'
+import { Building2, Settings, Users, Globe, Blocks, Calendar } from 'lucide-react'
 
 export default function BusinessPage() {
   const { activeOrganization } = useOrganization()
@@ -31,21 +31,21 @@ export default function BusinessPage() {
       icon: Settings,
       title: 'Organization Settings',
       description: 'General settings, timezone, locale, currency',
-      href: '/app/settings',
+      href: '/settings',
       detail: `Status: ${org.status}`,
     },
     {
       icon: Users,
       title: 'Team Management',
       description: 'Members, roles, invitations',
-      href: '/app/team',
+      href: '/team',
       detail: `${org._count.memberships} member${org._count.memberships !== 1 ? 's' : ''}, ${org._count.teams} team${org._count.teams !== 1 ? 's' : ''}`,
     },
     {
       icon: Blocks,
       title: 'Domain Modules',
       description: 'Industry-specific modules and capabilities',
-      href: '/app/domains',
+      href: '/domains',
       detail: 'Activate domain packages for your organization',
     },
   ]
