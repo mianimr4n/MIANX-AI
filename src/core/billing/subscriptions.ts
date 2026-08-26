@@ -299,7 +299,7 @@ export async function checkExpiredSubscriptions() {
       currentPeriodEnd: { lte: now },
     },
   })
-  const results = []
+  const results: unknown[] = []
   for (const sub of expired) {
     const updated = await transitionSubscription(sub.id, 'expired')
     results.push(updated as never)
@@ -314,7 +314,7 @@ export async function checkExpiredTrials() {
   const trials = await db.subscription.findMany({
     where: { state: 'trialing', trialEndsAt: { lte: now } },
   })
-  const results = []
+  const results: unknown[] = []
   for (const sub of trials) {
     const updated = await transitionSubscription(sub.id, 'expired')
     results.push(updated as never)

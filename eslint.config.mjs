@@ -28,18 +28,18 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "@next/next/no-html-link-for-pages": "off",
     
     // General JavaScript rules
-    "prefer-const": "off",
+    "prefer-const": "warn",
     "no-unused-vars": "off",
-    "no-console": "off",
-    "no-debugger": "off",
+    "no-console": "warn",
+    "no-debugger": "error",
     "no-empty": "off",
     "no-irregular-whitespace": "off",
     "no-case-declarations": "off",
     "no-fallthrough": "off",
     "no-mixed-spaces-and-tabs": "off",
-    "no-redeclare": "off",
+    "no-redeclare": "warn",
     "no-undef": "off",
-    "no-unreachable": "off",
+    "no-unreachable": "warn",
     "no-useless-escape": "off",
   },
 }, {

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, Building2, Bot, Workflow, Globe, Blocks, LayoutDashboard, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import type { Session } from '@supabase/supabase-js'
 
 const GOALS = [
   { id: 'ai-automation', label: 'AI & Automation', description: 'Use AI assistants and automated workflows', icon: Bot },
@@ -29,7 +30,7 @@ export default function OnboardingPage() {
   // Check auth on mount
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       if (!session?.user) {
         router.push('/login')
         return

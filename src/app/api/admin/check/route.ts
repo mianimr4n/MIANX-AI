@@ -16,5 +16,5 @@ export async function GET() {
   }
 
   const admin = isPlatformAdmin(user.email)
-  return NextResponse.json({ isAdmin: admin, email: user.email })
+  return NextResponse.json({ isAdmin: admin })
 }

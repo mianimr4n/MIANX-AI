@@ -3,6 +3,7 @@
 import { AppShell } from '@/components/layout'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { Session } from '@supabase/supabase-js'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [checked, setChecked] = useState(false)
@@ -10,7 +11,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session } }) => {
       if (session?.user) {
         setAuthenticated(true)
       } else {
@@ -23,7 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Listen for auth state changes (sign out)
   useEffect(() => {
     const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       if (session?.user) {
         setAuthenticated(true)
       } else {
