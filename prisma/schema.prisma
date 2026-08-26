@@ -150,6 +150,8 @@ model Team {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   members      TeamMember[]
+
+  @@index([organizationId])
 }
 
 model TeamMember {
@@ -234,6 +236,8 @@ model File {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
 }
 
 model AuditLog {
@@ -248,6 +252,8 @@ model AuditLog {
   createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt])
 }
 
 model Notification {
@@ -262,6 +268,8 @@ model Notification {
   createdAt       DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
 }
 
 // ── DOMAIN ENGINE TABLES ───────────────────────────────────────
@@ -603,6 +611,7 @@ model Approval {
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([decision, createdAt])
+  @@index([organizationId])
 }
 
 // ── INTEGRATION TABLES ─────────────────────────────────────────
@@ -1019,6 +1028,7 @@ model AlertRecord {
 
   @@index([status, severity])
   @@index([fingerprint])
+  @@index([organizationId])
 }
 
 model SLOTarget {

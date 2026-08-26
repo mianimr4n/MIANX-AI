@@ -14,6 +14,7 @@ import { db } from '@/lib/db';
 import type { CreateWebhookData, UpdateWebhookData, WebhookPayload } from './types';
 import { subscribe } from '@/core/automation/events';
 import type { EventEnvelope } from '@/core/automation';
+import { validateOutboundUrl } from '@/lib/url-safety';
 
 // ── Webhook Signature ─────────────────────────────────────────
 
@@ -61,6 +62,12 @@ function matchesEventTypes(eventType: string, subscribedTypes: string[]): boolea
  */
 export async function createWebhook(data: CreateWebhookData) {
   const secret = data.secret ?? generateWebhookSecret();
+
+  // SSRF protection: validate URL before storing
+  const urlCheck = await validateOutboundUrl(data.url);
+  if (!urlCheck.safe) {
+    throw new Error(`Invalid webhook URL: ${urlCheck.reason}`);
+  }
 
   const webhook = await db.webhook.create({
     data: {
@@ -125,7 +132,13 @@ export async function updateWebhook(
 
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData.name = data.name;
-  if (data.url !== undefined) updateData.url = data.url;
+  if (data.url !== undefined) {
+    const urlCheck = await validateOutboundUrl(data.url);
+    if (!urlCheck.safe) {
+      throw new Error(`Invalid webhook URL: ${urlCheck.reason}`);
+    }
+    updateData.url = data.url;
+  }
   if (data.eventTypes !== undefined) updateData.eventTypes = JSON.stringify(data.eventTypes);
   if (data.secret !== undefined) updateData.secret = data.secret;
   if (data.status !== undefined) updateData.status = data.status;
@@ -170,7 +183,25 @@ async function deliverToWebhook(
   };
 
   const payloadStr = JSON.stringify(payload);
-  const signature = signPayload(payloadStr, webhook.secret);
+  const signature = await signPayload(payloadStr, webhook.secret);
+
+  // SSRF defense-in-depth: re-validate URL at delivery time
+  const urlCheck = await validateOutboundUrl(webhook.url);
+  if (!urlCheck.safe) {
+    // Create delivery record with blocked status
+    await db.webhookDelivery.create({
+      data: {
+        webhookId: webhook.id,
+        organizationId: webhook.organizationId,
+        eventId: event.id,
+        eventType: event.eventType,
+        payload: payloadStr,
+        status: 'failed',
+        response: `URL blocked: ${urlCheck.reason}`,
+      },
+    });
+    return;
+  }
 
   const delivery = await db.webhookDelivery.create({
     data: {

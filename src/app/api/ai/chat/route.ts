@@ -1,19 +1,21 @@
 /**
  * MIANX.AI — AI Chat API
  * POST /api/ai/chat — Send a message and get streaming response
- * Phase 11: Rate limited (30 req/min per IP), token budget, input validation
+ * Rate limited (30 req/min per org+user), token budget, input validation
  */
 
 import { NextResponse } from 'next/server'
 import { sendMessage } from '@/ai'
 import { getUsageStats } from '@/ai/memory'
-import { withAuth } from '@/core/authorization'
+import { withAuth, withRateLimit } from '@/core/authorization'
 import { apiEnvelope } from '@/core/tenancy/utils'
 
 /** Monthly token budget per organization (free tier) */
 const MONTHLY_TOKEN_BUDGET = 1_000_000
 
-export const POST = withAuth(async (request, ctx) => {
+// 30 requests per minute per user+org
+const rateLimitedChat = withRateLimit(30, 60_000)(
+  withAuth(async (request, ctx) => {
   try {
     const body = await request.json()
     const { message, conversationId, agentSlug, model, maxTokens } = body
@@ -70,10 +72,13 @@ export const POST = withAuth(async (request, ctx) => {
       return NextResponse.json(apiEnvelope(null, 'No AI providers configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY in .env'), { status: 503 })
     }
     console.error('[POST /api/ai/chat]', error)
-    // Phase 13: Do not leak error messages in production
+    // Do not leak error messages in production
     if (process.env.NODE_ENV === 'production') {
       return NextResponse.json(apiEnvelope(null, 'AI chat failed. Please try again.'), { status: 500 })
     }
     return NextResponse.json(apiEnvelope(null, msg), { status: 500 })
   }
 }, { permission: 'ai.chat' })
+)
+
+export const POST = rateLimitedChat
