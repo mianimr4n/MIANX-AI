@@ -30,16 +30,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: 'Home', icon: Home, href: '/' },
-  { title: 'My Business', icon: Building2, permission: 'organization.view', href: '/business' },
-  { title: 'Domains', icon: Blocks, permission: 'domain.view', href: '/domains' },
-  { title: 'AI', icon: Bot, permission: 'ai.conversation.view', href: '/ai' },
-  { title: 'Automations', icon: Workflow, permission: 'workflow.view', href: '/automations' },
-  { title: 'Analytics', icon: BarChart3, permission: 'organization.view', href: '/analytics' },
-  { title: 'Integrations', icon: Globe, permission: 'integration.view', href: '/integrations' },
-  { title: 'Team', icon: Users, permission: 'membership.view', href: '/team' },
-  { title: 'Billing', icon: CreditCard, permission: 'billing.view', href: '/billing' },
-  { title: 'Settings', icon: Settings, permission: 'organization.update', href: '/settings' },
+  { title: 'Home', icon: Home, href: '/app' },
+  { title: 'My Business', icon: Building2, permission: 'organization.view', href: '/app/business' },
+  { title: 'Domains', icon: Blocks, permission: 'domain.view', href: '/app/domains' },
+  { title: 'AI', icon: Bot, permission: 'ai.conversation.view', href: '/app/ai' },
+  { title: 'Automations', icon: Workflow, permission: 'workflow.view', href: '/app/automations' },
+  { title: 'Analytics', icon: BarChart3, permission: 'organization.view', href: '/app/analytics' },
+  { title: 'Integrations', icon: Globe, permission: 'integration.view', href: '/app/integrations' },
+  { title: 'Team', icon: Users, permission: 'membership.view', href: '/app/team' },
+  { title: 'Billing', icon: CreditCard, permission: 'billing.view', href: '/app/billing' },
+  { title: 'Settings', icon: Settings, permission: 'organization.update', href: '/app/settings' },
 ]
 
 export function AppSidebar() {
@@ -61,7 +61,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-2">
-        <Link href="/" className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded-md transition-colors">
+        <Link href="/app" className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded-md transition-colors">
           <Activity className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold group-data-[collapsible=icon]:hidden">Mianx.ai</span>
         </Link>
@@ -75,7 +75,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === item.href}
+                    isActive={pathname === item.href || (item.href !== '/app' && pathname.startsWith(item.href))}
                     tooltip={item.title}
                   >
                     <Link href={item.href}>

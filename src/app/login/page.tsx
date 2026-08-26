@@ -45,7 +45,7 @@ export default function LoginPage() {
       }
       // Redirect to app
       if (data.user) {
-        window.location.href = '/'
+        window.location.href = '/app'
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed')
@@ -56,7 +56,7 @@ export default function LoginPage() {
 
   async function handleDevLogin() {
     // In development, just redirect to the app
-    window.location.href = '/'
+    window.location.href = '/app'
   }
 
   return (

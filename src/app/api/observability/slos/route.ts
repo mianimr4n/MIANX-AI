@@ -1,9 +1,8 @@
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // MIANX.AI — Observability: SLO Status API
 // Returns all SLO targets with current availability and error budgets
-// Phase 24: was completely unauthenticated (internal reliability data
-// leaked to anyone). Now requires platform admin, same as /api/domains.
-// ══════════════════════════════════════════════════════════════════
+// Phase 24: Security fix — requires platform admin auth
+// ══════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSLOStatus } from '@/core/observability'

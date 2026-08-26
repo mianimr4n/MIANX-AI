@@ -125,6 +125,8 @@ export function middleware(request: NextRequest) {
     '/api/organizations',
     '/api/me',
     '/api/permissions',
+    '/api/admin',
+    '/api/command-center',
   ]
   const isOrgExempt = ORG_EXEMPT_PREFIXES.some(p => pathname.startsWith(p)) || pathname === '/api/route'
 

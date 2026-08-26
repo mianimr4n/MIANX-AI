@@ -2,13 +2,7 @@
 // MIANX.AI — Organization Members API
 // GET   /api/organizations/:id/members  — List members
 // POST  /api/organizations/:id/members  — Add member
-// Phase 24: CRITICAL FIX — this route had NO auth check at all.
-//   Anyone could list any org's members (incl. roles/permissions)
-//   and, worse, POST themselves into any org with roleSlug: 'owner'
-//   — a full unauthenticated privilege-escalation / takeover path.
-//   Now requires auth + org membership, and invite requires
-//   member.invite permission. Role assignment is restricted to
-//   admin/owner-only roles being grantable by admin/owner only.
+// Phase 24: CRITICAL FIX — auth + org membership check + role escalation prevention
 // ══════════════════════════════════════════════════════
 
 import { db } from '@/lib/db'
@@ -66,8 +60,7 @@ export const POST = withAuthParams(async (
     return NextResponse.json({ error: 'userId is required' }, { status: 400 })
   }
 
-  // Only owner/admin can grant the owner or admin role — everyone else
-  // (with member.invite) can only invite at member/viewer level.
+  // Only owner/admin can grant the owner or admin role
   if (roleSlug === 'owner' || roleSlug === 'admin') {
     const isOrgAdmin = ctx.roles.some(r => r.slug === 'owner' || r.slug === 'admin')
     if (!isOrgAdmin) {
@@ -109,7 +102,7 @@ export const POST = withAuthParams(async (
   // Assign role if provided
   if (roleSlug) {
     const role = await db.role.findFirst({
-      where: { organizationId: id, slug: roleSlug }
+      where: { organizationId: id, slug: roleSlug },
     })
     if (role) {
       await db.membershipRole.create({

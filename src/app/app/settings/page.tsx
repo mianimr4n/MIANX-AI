@@ -238,7 +238,7 @@ export default function SettingsPage() {
         method: 'DELETE',
       })
       if (res.ok) {
-        window.location.href = '/'
+        window.location.href = '/app'
       }
     } catch { /* silent */ } finally {
       setArchiving(false)

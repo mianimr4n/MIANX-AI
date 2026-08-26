@@ -123,10 +123,10 @@ export function GlobalHeader({ onAIWorkspaceOpen }: GlobalHeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/settings')}>
+            <DropdownMenuItem onClick={() => router.push('/app/settings')}>
               <User className="mr-2 h-4 w-4" />Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/settings')}>
+            <DropdownMenuItem onClick={() => router.push('/app/settings')}>
               <Settings className="mr-2 h-4 w-4" />Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
