@@ -49,3 +49,54 @@ Stage Summary:
 - 0 CRITICAL, 17 HIGH, 31 MEDIUM, 26 LOW, 41 INFO findings across 9 dimensions
 - Top 5 P0 actions: Add 5 missing DB indexes, rate-limit AI endpoints, fix webhook signature await, block private IPs in webhooks, delete dead /api route
 - Report: MIANX-AI-Project-Audit-Report.pdf (191KB, 16 pages, Chinese)
+
+---
+Task ID: 28
+Agent: Main Agent
+Task: P0 + P1 Audit Remediation & Revenue Path Analysis
+
+Work Log:
+- Built verified remediation matrix: confirmed all P0 findings against current codebase
+- P0-1: Added @@index([organizationId]) to 6 Prisma models (Team, File, AuditLog, Notification, Approval, AlertRecord). Audit said 5, found 6 including AlertRecord.
+- P0-2: Applied withRateLimit(30, 60_000) to POST /api/ai/chat. Uses existing rate-limit infrastructure.
+- P0-3: Added await to signPayload() in webhooks.ts line 173. Signature was [object Promise].
+- P0-4: Created centralized SSRF protection (src/lib/url-safety.ts). Blocks localhost, RFC1918, link-local, cloud metadata, CGNAT. Applied at webhook create, update, AND delivery (defense-in-depth).
+- P0-5: Deleted dead /api/route.ts returning Hello World with no auth.
+- P1-1: Re-enabled 5 critical ESLint rules (no-console:warn, no-debugger:error, prefer-const:warn, no-redeclare:warn, no-unreachable:warn).
+- P1-2: Set noImplicitAny: true in tsconfig.json. Fixed all 8 resulting TS errors (Session types in layouts, results typing in billing).
+- P1-3: Added poweredByHeader: false to next.config.ts.
+- P1-4: Removed user email from /api/admin/check response (PII leak).
+- P1-5: Updated tsconfig target from ES2017 to ES2022.
+- Revenue path analysis completed: 2 FAIL, 4 PARTIAL, 2 PASS across 8 steps.
+- Quality gates: tsc 0 errors, eslint 0 errors, build succeeds, no secrets in diff.
+- Git: 2 commits (7705416, dac8908). Push BLOCKED (no PAT in credential store).
+
+Stage Summary:
+- All P0 security findings VERIFIED FIXED with evidence (code changes, tsc/lint/build)
+- All P1 config findings VERIFIED FIXED
+- REVENUE READY: NO (see blockers below)
+- CEO Verdict: PRIVATE ALPHA READY (security hardening complete, revenue requires external Stripe credentials)
+
+Revenue Path:
+  Step 1 (Discovery): PASS
+  Step 2 (Signup): PARTIAL (/signup redirects to /login)
+  Step 3 (Login): PARTIAL (depends on Supabase config)
+  Step 4 (Onboarding): PASS
+  Step 5 (Plan Selection): FAIL (no system plans seeded in DB)
+  Step 6 (Payment): FAIL (Stripe adapter is 100% stub)
+  Step 7 (Subscription Activation): PARTIAL (state machine works, no payment trigger)
+  Step 8 (Plan Config): PARTIAL (CRUD works, zero data seeded)
+
+Revenue Blockers:
+  1. No system plans in database (seed.ts does not create plans)
+  2. No real Stripe integration (adapter is stub, no @stripe/stripe-js installed)
+  3. No first-time subscription creation flow in UI (only upgrade, requires existing sub)
+  4. No Stripe webhook endpoint for automated payment events
+  5. No billing cron job configured (checkExpiredSubscriptions/Trials exist but unscheduled)
+
+Code completed without external credentials:
+  - Full billing state machine (8 states, validated transitions)
+  - Plan CRUD + versioning + feature registry APIs
+  - Invoice generation and management
+  - Usage tracking and entitlement checking
+  - Subscription lifecycle (create, upgrade, cancel, pause, expire)
