@@ -2,106 +2,121 @@
 // MIANX.AI — Organization Members API
 // GET   /api/organizations/:id/members  — List members
 // POST  /api/organizations/:id/members  — Add member
-// Phase 13: Added pagination, auth, safe error responses
+// Phase 24: CRITICAL FIX — this route had NO auth check at all.
+//   Anyone could list any org's members (incl. roles/permissions)
+//   and, worse, POST themselves into any org with roleSlug: 'owner'
+//   — a full unauthenticated privilege-escalation / takeover path.
+//   Now requires auth + org membership, and invite requires
+//   member.invite permission. Role assignment is restricted to
+//   admin/owner-only roles being grantable by admin/owner only.
 // ══════════════════════════════════════════════════════
 
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { parsePagination, prismaPagination, paginateResult } from '@/lib/pagination'
+import { withAuthParams, type AuthContext } from '@/core/authorization'
+import { AuthorizationError } from '@/core/authorization/auth-context'
 
 export const dynamic = 'force-dynamic'
 
 // GET /api/organizations/:id/members
-export async function GET(
+export const GET = withAuthParams(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params
-    const pagination = parsePagination(request.nextUrl.searchParams)
-    const { skip, take } = prismaPagination(pagination)
-
-    const [members, total] = await Promise.all([
-      db.organizationMembership.findMany({
-        where: { organizationId: id },
-        skip,
-        take,
-        include: {
-          profile: true,
-          roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      db.organizationMembership.count({ where: { organizationId: id } }),
-    ])
-
-    return NextResponse.json(paginateResult(members, total, pagination))
-  } catch (error) {
-    console.error('[GET /api/organizations/:id/members]', error)
-    return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 })
+  ctx: AuthContext,
+  { id }: { id: string }
+) => {
+  if (ctx.organizationId !== id) {
+    return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
   }
-}
+
+  const pagination = parsePagination(request.nextUrl.searchParams)
+  const { skip, take } = prismaPagination(pagination)
+
+  const [members, total] = await Promise.all([
+    db.organizationMembership.findMany({
+      where: { organizationId: id },
+      skip,
+      take,
+      include: {
+        profile: true,
+        roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    db.organizationMembership.count({ where: { organizationId: id } }),
+  ])
+
+  return NextResponse.json(paginateResult(members, total, pagination))
+}, { anyPermission: ['member.view', 'organization.manage'] })
 
 // POST /api/organizations/:id/members — Invite a member
-export async function POST(
+export const POST = withAuthParams(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params
-    const body = await request.json()
-    const { userId, roleSlug } = body
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
-    }
-
-    // Check org exists
-    const org = await db.organization.findUnique({ where: { id } })
-    if (!org) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
-    }
-
-    // Check if already a member
-    const existing = await db.organizationMembership.findUnique({
-      where: { organizationId_userId: { organizationId: id, userId } },
-    })
-    if (existing) {
-      return NextResponse.json({ error: 'User is already a member' }, { status: 409 })
-    }
-
-    // Create profile if not exists
-    await db.profile.upsert({
-      where: { userId },
-      update: {},
-      create: { userId, displayName: `User ${userId.slice(0, 6)}` },
-    })
-
-    // Create membership
-    const membership = await db.organizationMembership.create({
-      data: {
-        organizationId: id,
-        userId,
-        status: 'invited',
-        joinedAt: new Date(),
-      },
-    })
-
-    // Assign role if provided
-    if (roleSlug) {
-      const role = await db.role.findFirst({
-        where: { organizationId: id, slug: roleSlug }
-      })
-      if (role) {
-        await db.membershipRole.create({
-          data: { membershipId: membership.id, roleId: role.id },
-        })
-      }
-    }
-
-    return NextResponse.json({ data: membership }, { status: 201 })
-  } catch (error) {
-    console.error('[POST /api/organizations/:id/members]', error)
-    return NextResponse.json({ error: 'Failed to add member' }, { status: 500 })
+  ctx: AuthContext,
+  { id }: { id: string }
+) => {
+  if (ctx.organizationId !== id) {
+    return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
   }
-}
+
+  const body = await request.json()
+  const { userId, roleSlug } = body
+
+  if (!userId) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  }
+
+  // Only owner/admin can grant the owner or admin role — everyone else
+  // (with member.invite) can only invite at member/viewer level.
+  if (roleSlug === 'owner' || roleSlug === 'admin') {
+    const isOrgAdmin = ctx.roles.some(r => r.slug === 'owner' || r.slug === 'admin')
+    if (!isOrgAdmin) {
+      throw new AuthorizationError('Only an organization owner or admin can grant that role', 403)
+    }
+  }
+
+  // Check org exists
+  const org = await db.organization.findUnique({ where: { id } })
+  if (!org) {
+    return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+  }
+
+  // Check if already a member
+  const existing = await db.organizationMembership.findUnique({
+    where: { organizationId_userId: { organizationId: id, userId } },
+  })
+  if (existing) {
+    return NextResponse.json({ error: 'User is already a member' }, { status: 409 })
+  }
+
+  // Create profile if not exists
+  await db.profile.upsert({
+    where: { userId },
+    update: {},
+    create: { userId, displayName: `User ${userId.slice(0, 6)}` },
+  })
+
+  // Create membership
+  const membership = await db.organizationMembership.create({
+    data: {
+      organizationId: id,
+      userId,
+      status: 'invited',
+      joinedAt: new Date(),
+    },
+  })
+
+  // Assign role if provided
+  if (roleSlug) {
+    const role = await db.role.findFirst({
+      where: { organizationId: id, slug: roleSlug }
+    })
+    if (role) {
+      await db.membershipRole.create({
+        data: { membershipId: membership.id, roleId: role.id },
+      })
+    }
+  }
+
+  return NextResponse.json({ data: membership }, { status: 201 })
+}, { anyPermission: ['member.invite', 'organization.manage'] })
