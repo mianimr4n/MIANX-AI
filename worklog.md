@@ -1,102 +1,84 @@
-# MIANX.AI Phase 26 — Work Log
+# MIANX.AI — Work Log
 
 ---
-Task ID: 26
-Agent: Main Agent
-Task: Launch Path Completion, Production Deployment & Revenue Activation
+Task ID: 1
+Agent: Main (CEO Launch Execution)
+Task: Priority 1 — GitHub sync and commit verification
 
 Work Log:
-- STEP 0: Baseline verification — branch main, HEAD 1757cd5, 2 commits ahead of origin/main (6ca1fdd), clean working tree
-- STEP 1: Push attempt — BLOCKED (no GitHub PAT in credential store)
-- STEP 2: **CRITICAL FIX** — Removed `src/app/(app)/` route group that created 7 duplicate bare routes (/ai, /billing, etc.) bypassing auth guard and app layout. Also removed stray `src/app/authorization-tab.tsx`.
-- STEP 3: Landing page verified — 10 sections (nav, hero, features, solutions, security, modules, pricing, FAQ, CTA, footer), all links real, mobile responsive
-- STEP 4: Auth journey verified — signup (redirects to login with mode toggle), login (Supabase), session (app layout guard), logout (global header), error handling
-- STEP 5: Onboarding verified — 3-step flow (welcome → org creation → goal selection → redirect to /app)
-- STEP 6: Dashboard verified — KPIs, quick actions (all real links), org info, system health, recent activity, org switcher
-- STEP 7: Admin panel verified — 7 pages (overview, orgs, users, domains, revenue, health, audit), all APIs protected with withAuth + requirePlatformAdmin
-- STEP 8: Revenue audited — Self-managed billing engine (plans, subscriptions, invoices, usage). No Stripe integration yet.
-- STEP 9: Productization verified — All 8 modules have CRUD APIs and functional UI pages
-- STEP 10: E2E test script created — `scripts/e2e-acceptance.sh` tests 5 personas (anonymous, authenticated, app routes, admin routes, security headers)
-- STEP 11: Quality gates ALL PASSED — tsc 0 errors, eslint 0 errors/0 warnings, production build passes, no secrets in diff
-- STEP 12: Production verification — Current production (6ca1fdd) serves landing page + login only. All /app/*, /admin/*, /onboarding, /signup return 404. **Push required to deploy.**
+- Verified git status: 5 commits ahead of origin/main
+- HEAD: 717e7e820631762493e945c45785ee18f61f8b89
+- origin/main: 61370f83c0605c90b3d0c4f887ca4450fc094656
+- Attempted git push: FAILED — `fatal: could not read Username for 'https://github.com': No such device or address`
+- Checked: no SSH client, no gh CLI, no stored credentials, no token in env
+- Remote uses HTTPS: https://github.com/mianimr4n/MIANX-AI.git
 
 Stage Summary:
-- 4 commits ready to push (8db766c, b2b2c88, 1757cd5, ad0bdff)
-- Route architecture CRITICAL bug fixed (duplicate bare routes eliminated)
-- All quality gates pass locally
-- Single blocker: GitHub PAT missing from credential store
-- Verdict: **PRIVATE ALPHA READY** (once pushed)
+- GitHub push: BLOCKED — no authentication credentials available in this environment
+- 6 commits now local (5 prior + 1 new revenue commit)
+- User must configure SSH key, gh CLI auth, or personal access token to push
 
 ---
-Task ID: 27
-Agent: Main Agent
-Task: Full Project Audit (9 Dimensions)
+Task ID: 2
+Agent: Main (CEO Launch Execution)
+Task: Priority 2 — Vercel production verification
 
 Work Log:
-- Launched 3 parallel audit agents covering Security, API/Architecture/Code Quality, Database/Dependencies/Configuration, and UI/UX
-- Security Audit: Found SSRF via webhook URLs (HIGH), AI chat missing rate limiting (HIGH), webhook signature bug (MEDIUM), strong tenant isolation (POSITIVE)
-- API Audit: 92 routes analyzed, 81/92 use withAuth framework, dead /api route found, no schema validation library
-- Architecture Audit: Excellent DDD with manifest-based plugin system, strong multi-tenancy via AsyncLocalStorage + Prisma extension
-- Code Quality Audit: Zero TODO/FIXME comments, minimal as any, dead code identified (unused components, navigation config)
-- Database Audit: 40 models, 24 enums, 5 models missing organizationId indexes (HIGH), 6 status fields using String instead of enums
-- Dependency Audit: 16 completely unused production dependencies (~500KB+ dead weight), all major versions current
-- Configuration Audit: ESLint effectively disabled (22 rules off), noImplicitAny: false, missing poweredByHeader
-- UI/UX Audit: Accessibility gaps (1 aria-label across all pages), no route-level loading.tsx, 12 unused UI components
-- Generated comprehensive 16-page Chinese PDF audit report with cover, TOC, and 7 detailed findings tables
-- Report saved to /home/z/my-project/download/MIANX-AI-Project-Audit-Report.pdf
+- Searched codebase for Vercel project URL: none found
+- Tested mianx.ai DNS: `Could not resolve host: mianx.ai`
+- Project uses Docker/Caddy deployment (docker-compose.production.yml + Caddyfile), not Vercel serverless
+- vercel.json exists with build config but no .vercel/project.json
 
 Stage Summary:
-- 0 CRITICAL, 17 HIGH, 31 MEDIUM, 26 LOW, 41 INFO findings across 9 dimensions
-- Top 5 P0 actions: Add 5 missing DB indexes, rate-limit AI endpoints, fix webhook signature await, block private IPs in webhooks, delete dead /api route
-- Report: MIANX-AI-Project-Audit-Report.pdf (191KB, 16 pages, Chinese)
+- Vercel production verification: BLOCKED — domain not deployed/resolving
+- Architecture is Docker/Caddy, not Vercel serverless
+- User must deploy to a server and configure DNS for mianx.ai
 
 ---
-Task ID: 28
-Agent: Main Agent
-Task: P0 + P1 Audit Remediation & Revenue Path Analysis
+Task ID: 3
+Agent: Main (CEO Launch Execution)
+Task: Priority 3 — CEO/Admin access fix
 
 Work Log:
-- Built verified remediation matrix: confirmed all P0 findings against current codebase
-- P0-1: Added @@index([organizationId]) to 6 Prisma models (Team, File, AuditLog, Notification, Approval, AlertRecord). Audit said 5, found 6 including AlertRecord.
-- P0-2: Applied withRateLimit(30, 60_000) to POST /api/ai/chat. Uses existing rate-limit infrastructure.
-- P0-3: Added await to signPayload() in webhooks.ts line 173. Signature was [object Promise].
-- P0-4: Created centralized SSRF protection (src/lib/url-safety.ts). Blocks localhost, RFC1918, link-local, cloud metadata, CGNAT. Applied at webhook create, update, AND delivery (defense-in-depth).
-- P0-5: Deleted dead /api/route.ts returning Hello World with no auth.
-- P1-1: Re-enabled 5 critical ESLint rules (no-console:warn, no-debugger:error, prefer-const:warn, no-redeclare:warn, no-unreachable:warn).
-- P1-2: Set noImplicitAny: true in tsconfig.json. Fixed all 8 resulting TS errors (Session types in layouts, results typing in billing).
-- P1-3: Added poweredByHeader: false to next.config.ts.
-- P1-4: Removed user email from /api/admin/check response (PII leak).
-- P1-5: Updated tsconfig target from ES2017 to ES2022.
-- Revenue path analysis completed: 2 FAIL, 4 PARTIAL, 2 PASS across 8 steps.
-- Quality gates: tsc 0 errors, eslint 0 errors, build succeeds, no secrets in diff.
-- Git: 2 commits (7705416, dac8908). Push BLOCKED (no PAT in credential store).
+- Audited admin layout: was using /api/admin/organizations and inferring admin from 403 status
+- /api/admin/check endpoint exists (returns { isAdmin: boolean }) but was NOT being used
+- Fixed admin/layout.tsx to call /api/admin/check directly
+- Added proper 401 → redirect to /login handling
+- Verified /api/admin/check route: uses isPlatformAdmin(email) from platform-admin.ts
+- PLATFORM_ADMIN_EMAILS env var is documented in .env.example
 
 Stage Summary:
-- All P0 security findings VERIFIED FIXED with evidence (code changes, tsc/lint/build)
-- All P1 config findings VERIFIED FIXED
-- REVENUE READY: NO (see blockers below)
-- CEO Verdict: PRIVATE ALPHA READY (security hardening complete, revenue requires external Stripe credentials)
+- Admin layout now uses the correct, purpose-built /api/admin/check endpoint
+- Admin recognition depends on PLATFORM_ADMIN_EMAILS being set in production env
 
-Revenue Path:
-  Step 1 (Discovery): PASS
-  Step 2 (Signup): PARTIAL (/signup redirects to /login)
-  Step 3 (Login): PARTIAL (depends on Supabase config)
-  Step 4 (Onboarding): PASS
-  Step 5 (Plan Selection): FAIL (no system plans seeded in DB)
-  Step 6 (Payment): FAIL (Stripe adapter is 100% stub)
-  Step 7 (Subscription Activation): PARTIAL (state machine works, no payment trigger)
-  Step 8 (Plan Config): PARTIAL (CRUD works, zero data seeded)
+---
+Task ID: 4
+Agent: Main (CEO Launch Execution)
+Task: Priority 4 — Revenue Activation
 
-Revenue Blockers:
-  1. No system plans in database (seed.ts does not create plans)
-  2. No real Stripe integration (adapter is stub, no @stripe/stripe-js installed)
-  3. No first-time subscription creation flow in UI (only upgrade, requires existing sub)
-  4. No Stripe webhook endpoint for automated payment events
-  5. No billing cron job configured (checkExpiredSubscriptions/Trials exist but unscheduled)
+Work Log:
+- Audited complete billing system: 7 API routes, 7 Prisma models, full state machine, entitlement engine
+- Found ZERO payment collection: Stripe SDK not installed, adapter was 100% stub, no checkout/webhook routes
+- Found plan mismatch: seed had Starter($29)/Growth($99)/Enterprise($299) vs landing page Free/Pro($29)/Enterprise(Custom)
 
-Code completed without external credentials:
-  - Full billing state machine (8 states, validated transitions)
-  - Plan CRUD + versioning + feature registry APIs
-  - Invoice generation and management
-  - Usage tracking and entitlement checking
-  - Subscription lifecycle (create, upgrade, cancel, pause, expire)
+Fixes implemented:
+1. Added Payment model to Prisma schema (stripePaymentIntentId, stripeChargeId, idempotencyKey, etc.)
+2. Added Stripe integration fields to Subscription model (stripeCustomerId, stripeSubscriptionId, stripePriceId)
+3. Added STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to env.ts + .env.example
+4. Installed stripe npm package (v22.6.0)
+5. Created /api/billing/checkout — Stripe Checkout Session creation with customer lookup, idempotency, plan validation
+6. Created /api/stripe/webhook — Full webhook handler with timing-safe signature verification, idempotency guard, event dispatch for: checkout.session.completed, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted
+7. Replaced stub StripeAdapter with real implementation (lazy Stripe SDK init, proper API calls, graceful config-error throws)
+8. Aligned seed plans: Free ($0, 3 members, 100K tokens) / Pro ($29/mo, unlimited members, 1M tokens) / Enterprise (Custom)
+9. Created PricingSection component — fetches plans dynamically from /api/billing/plans?system=true with fallback
+10. Updated landing page to use PricingSection instead of hardcoded PLANS array
+11. Updated billing dashboard upgrade handler: free plans use direct API, paid plans redirect to Stripe Checkout with fallback
+
+Quality gate: tsc --noEmit clean, next build successful
+New routes in build: /api/billing/checkout, /api/stripe/webhook
+
+Stage Summary:
+- Revenue infrastructure is now Stripe-ready
+- BLOCKED at the credential boundary: needs real STRIPE_SECRET_KEY and Stripe Price IDs configured in plan metadata
+- No fake payments — checkout returns 503 until Stripe is configured
+- No fake success — webhook rejects all requests without valid signature
