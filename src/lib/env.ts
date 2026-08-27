@@ -37,6 +37,11 @@ const envSchema = z.object({
   // Phase 22: Platform admin emails (comma-separated) and health-check shared secret
   PLATFORM_ADMIN_EMAILS: z.string().optional(),
   OBSERVABILITY_HEALTH_SECRET: z.string().optional(),
+
+  // Stripe (required for revenue collection in production)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -68,6 +73,9 @@ export function getEnv(): Env | null {
     REDIS_URL: process.env.REDIS_URL,
     PLATFORM_ADMIN_EMAILS: process.env.PLATFORM_ADMIN_EMAILS,
     OBSERVABILITY_HEALTH_SECRET: process.env.OBSERVABILITY_HEALTH_SECRET,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   })
 
   if (!result.success) {

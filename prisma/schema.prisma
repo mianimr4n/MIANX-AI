@@ -97,6 +97,7 @@ model Organization {
   subscriptions            Subscription[]
   usageRecords             UsageRecord[]
   invoices                 Invoice[]
+  payments                  Payment[]
   incidents                Incident[]
   poultryFarms             PoultryFarm[]
   poultrySheds             PoultryShed[]
@@ -871,18 +872,24 @@ model Subscription {
   canceledAt         DateTime?
   expiresAt          DateTime?
   pausedAt           DateTime?
-  metadata           String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  // Stripe integration fields
+  stripeCustomerId        String?  @unique
+  stripeSubscriptionId    String?  @unique
+  stripePriceId           String?
+  metadata                 String?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   plan         Plan?        @relation(fields: [planId], references: [id])
   planVersion  PlanVersion  @relation(fields: [planVersionId], references: [id])
   invoices     Invoice[]
+  payments     Payment[]
 
   @@unique([organizationId])
   @@index([state])
   @@index([currentPeriodEnd])
+  @@index([stripeCustomerId])
 }
 
 model UsageMeter {
@@ -940,10 +947,37 @@ model Invoice {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  payments     Payment[]
 
   @@unique([organizationId, invoiceNumber])
   @@index([subscriptionId])
   @@index([status])
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  organizationId      String
+  subscriptionId      String
+  invoiceId           String?
+  stripePaymentIntentId String?      @unique
+  stripeChargeId      String?       @unique
+  amount              Float
+  currency            String        @default("USD")
+  status              PaymentStatus @default(pending)
+  paymentMethod       String?       // e.g. 'card', 'bank_transfer'
+  description         String?
+  idempotencyKey      String?       @unique
+  metadata            String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  invoice     Invoice?      @relation(fields: [invoiceId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ── OBSERVABILITY TABLES ─────────────────────────────────────

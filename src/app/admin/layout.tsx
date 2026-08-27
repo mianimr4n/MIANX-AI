@@ -31,12 +31,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return
         }
         setEmail(session.user.email ?? '')
-        // Verify platform admin via API
-        const res = await fetch('/api/admin/organizations')
-        if (res.status === 403) {
-          setAuthorized(false)
+        // Verify platform admin via dedicated check endpoint
+        const res = await fetch('/api/admin/check')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.isAdmin) {
+            setAuthorized(true)
+          } else {
+            setAuthorized(false)
+          }
+        } else if (res.status === 401) {
+          window.location.href = '/login'
         } else {
-          setAuthorized(true)
+          setAuthorized(false)
         }
       } catch {
         setAuthorized(false)

@@ -4,42 +4,98 @@
 // ══════════════════════════════════════════════════════════════════
 
 import type { PaymentProviderAdapter } from './types'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 
-// ── Stripe Adapter (Stub — production: @stripe/stripe-js) ──
+// ── Stripe Adapter — Production-ready with graceful fallback ──
+// When STRIPE_SECRET_KEY is set, uses the real Stripe SDK.
+// When not set, methods throw explicit configuration errors.
 
 export class StripeAdapter implements PaymentProviderAdapter {
   name = 'stripe'
   private secretKey: string
   private webhookSecret: string
+  private _stripe: import('stripe').Stripe | null = null
 
   constructor(secretKey: string, webhookSecret: string) {
     this.secretKey = secretKey
     this.webhookSecret = webhookSecret
   }
 
-  async createCustomer(_orgId: string, data: Record<string, unknown>) {
-    // In production: const customer = await stripe.customers.create({...})
-    return { externalId: `cus_stub_${Date.now()}`, ...data }
+  private async getStripe() {
+    if (!this.secretKey) {
+      throw new Error('STRIPE_SECRET_KEY is not configured. Payment operations are unavailable.')
+    }
+    if (!this._stripe) {
+      try {
+        const Stripe = (await import('stripe')).default
+        this._stripe = new Stripe(this.secretKey)
+      } catch (err) {
+        throw new Error(
+          `Failed to initialize Stripe SDK. Ensure 'stripe' package is installed. ${err instanceof Error ? err.message : ''}`,
+        )
+      }
+    }
+    return this._stripe
   }
 
-  async createSubscription(_externalCustomerId: string, _planExternalId: string) {
-    // In production: const sub = await stripe.subscriptions.create({...})
-    return { externalId: `sub_stub_${Date.now()}`, status: 'active' }
+  async createCustomer(orgId: string, data: Record<string, unknown>) {
+    const stripe = await this.getStripe()
+    const customer = await stripe.customers.create({
+      email: data.email as string | undefined,
+      name: data.name as string | undefined,
+      metadata: { organizationId: orgId },
+    })
+    return { externalId: customer.id, ...data }
+  }
+
+  async createSubscription(externalCustomerId: string, planExternalId: string) {
+    const stripe = await this.getStripe()
+    const subscription = await stripe.subscriptions.create({
+      customer: externalCustomerId,
+      items: [{ price: planExternalId }],
+      trial_period_days: 14,
+    })
+    return { externalId: subscription.id, status: subscription.status }
   }
 
   async cancelSubscription(externalSubscriptionId: string) {
-    // In production: await stripe.subscriptions.cancel(externalSubscriptionId)
-    return { status: 'canceled' }
+    const stripe = await this.getStripe()
+    const subscription = await stripe.subscriptions.cancel(externalSubscriptionId)
+    return { status: subscription.status }
   }
 
-  async updatePaymentMethod(_externalCustomerId: string, _token: string) {
-    // In production: await stripe.customers.update(customerId, {source: token})
+  async updatePaymentMethod(externalCustomerId: string, paymentMethodId: string) {
+    const stripe = await this.getStripe()
+    await stripe.customers.update(externalCustomerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    })
   }
 
   verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-    const expectedSig = createHmac('sha256', secret).update(payload).digest('hex')
-    return `sha256=${expectedSig}` === signature
+    const elements = signature.split(',')
+    let timestamp = ''
+    let v1Signature = ''
+
+    for (const element of elements) {
+      const [key, value] = element.split('=')
+      if (key === 't') timestamp = value
+      if (key === 'v1') v1Signature = value
+    }
+
+    if (!timestamp || !v1Signature) return false
+
+    // Reject old or future timestamps (5 min tolerance)
+    const age = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10)
+    if (age > 300 || age < -60) return false
+
+    const signedPayload = `${timestamp}.${payload}`
+    const expected = createHmac('sha256', secret).update(signedPayload).digest('hex')
+
+    try {
+      return timingSafeEqual(Buffer.from(v1Signature), Buffer.from(expected))
+    } catch {
+      return false
+    }
   }
 
   parseWebhookEvent(payload: string): { type: string; data: Record<string, unknown> } {
@@ -65,10 +121,28 @@ export function getProvider(name: string): PaymentProviderAdapter | undefined {
 }
 
 export function listProviders() {
-  return Array.from(providers.entries()).map(([name, adapter]) => ({
+  return Array.from(providers.entries()).map(([name]) => ({
     name,
     configured: true,
   }))
+}
+
+/**
+ * Initialize the Stripe provider if credentials are available.
+ * Call this at app startup (e.g. in instrumentation.ts or a server init module).
+ * No-op if STRIPE_SECRET_KEY is not set.
+ */
+export function initStripeProvider() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+  if (secretKey && webhookSecret) {
+    const adapter = new StripeAdapter(secretKey, webhookSecret)
+    registerProvider(adapter)
+    console.log('[Payment] Stripe provider registered')
+  } else {
+    console.log('[Payment] Stripe provider not configured (no STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET)')
+  }
 }
 
 // ── Reconciliation (periodic) ──
@@ -81,7 +155,11 @@ export interface ReconciliationDiff {
 }
 
 export async function reconcileSubscription(_subscriptionId: string): Promise<ReconciliationDiff[]> {
-  // In production: fetch subscription from Stripe, compare with local state
-  // Returns array of differences for manual review
+  const provider = getProvider('stripe')
+  if (!provider) return []
+
+  // In production: fetch subscription from Stripe, compare with local DB state
+  // const stripeSub = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId)
+  // Compare state, period dates, plan, etc.
   return []
 }

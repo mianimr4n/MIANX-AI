@@ -4,9 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { PricingSection } from '@/components/pricing-section'
 import {
   Activity, Bot, Workflow, Globe, Shield, BarChart3, Users, CreditCard,
-  Building2, ArrowRight, CheckCircle2, ChevronDown, Zap, Lock, Blocks,
+  Building2, ArrowRight, ChevronDown, Zap, Lock, Blocks,
 } from 'lucide-react'
 
 const NAV_LINKS = [
@@ -66,35 +67,7 @@ const SOLUTIONS = [
   },
 ]
 
-const PLANS = [
-  {
-    name: 'Starter',
-    price: 'Free',
-    period: '',
-    description: 'For individuals and small teams getting started.',
-    features: ['1 Organization', 'Up to 3 team members', 'Basic AI conversations', '5 Automations', 'Community support'],
-    cta: 'Get Started Free',
-    highlighted: false,
-  },
-  {
-    name: 'Pro',
-    price: '$29',
-    period: '/month',
-    description: 'For growing businesses that need more power.',
-    features: ['5 Organizations', 'Unlimited team members', 'Advanced AI with agents', 'Unlimited automations', 'Full integrations suite', 'Priority support', 'Custom webhooks'],
-    cta: 'Start Pro Trial',
-    highlighted: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    description: 'For large organizations with advanced needs.',
-    features: ['Unlimited organizations', 'Dedicated infrastructure', 'Custom AI models', 'SLA guarantees', 'SSO & advanced security', 'Dedicated account manager', 'Custom integrations'],
-    cta: 'Contact Sales',
-    highlighted: false,
-  },
-]
+// Pricing plans are now loaded dynamically from /api/billing/plans via PricingSection component
 
 const FAQ_ITEMS = [
   {
@@ -363,56 +336,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ── */}
-      <section id="pricing" className="py-20 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl font-bold sm:text-4xl">Simple, Transparent Pricing</h2>
-            <p className="mt-4 text-muted-foreground text-lg">
-              Start free. Scale as you grow. No hidden fees.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {PLANS.map((plan) => (
-              <Card
-                key={plan.name}
-                className={`relative ${plan.highlighted ? 'border-primary shadow-lg' : ''}`}
-              >
-                {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-0.5 rounded-full text-xs font-medium">
-                    Most Popular
-                  </div>
-                )}
-                <CardContent className="p-6">
-                  <h3 className="font-semibold text-lg">{plan.name}</h3>
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">{plan.price}</span>
-                    {plan.period && <span className="text-muted-foreground text-sm">{plan.period}</span>}
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                  <ul className="mt-6 space-y-3">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className="w-full mt-8"
-                    variant={plan.highlighted ? 'default' : 'outline'}
-                    asChild
-                  >
-                    <Link href={plan.name === 'Enterprise' ? '/login' : '/signup'}>
-                      {plan.cta}
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ── Pricing (dynamic from API) ── */}
+      <PricingSection />
 
       {/* ── FAQ ── */}
       <section className="py-20">

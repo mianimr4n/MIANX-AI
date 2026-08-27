@@ -589,53 +589,55 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   ])
   console.log(`  ✓ Created ${billingFeatures.length} features`)
 
-  // ── System Plans ──
-  const starterPlan = await prisma.plan.create({
-    data: { name: 'Starter', slug: 'starter', description: 'For small farms getting started', billingCycle: 'monthly', basePrice: 29, currency: 'USD', status: 'active', isSystem: true },
+  // ── System Plans (aligned with landing page: Free, Pro, Enterprise) ──
+  const freePlan = await prisma.plan.create({
+    data: { name: 'Free', slug: 'free', description: 'Get started with core features at no cost', billingCycle: 'monthly', basePrice: 0, currency: 'USD', status: 'active', isSystem: true },
   })
-  const growthPlan = await prisma.plan.create({
-    data: { name: 'Growth', slug: 'growth', description: 'For scaling operations', billingCycle: 'monthly', basePrice: 99, currency: 'USD', status: 'active', isSystem: true },
+  const proPlan = await prisma.plan.create({
+    data: { name: 'Pro', slug: 'pro', description: 'For professionals who need advanced AI and unlimited automations', billingCycle: 'monthly', basePrice: 29, currency: 'USD', status: 'active', isSystem: true },
   })
   const enterprisePlan = await prisma.plan.create({
-    data: { name: 'Enterprise', slug: 'enterprise', description: 'For large multi-site operations', billingCycle: 'monthly', basePrice: 299, currency: 'USD', status: 'active', isSystem: true },
+    data: { name: 'Enterprise', slug: 'enterprise', description: 'Unlimited scale with dedicated infrastructure and custom support', billingCycle: 'monthly', basePrice: 0, currency: 'USD', status: 'active', isSystem: true, metadata: JSON.stringify({ contactRequired: true }) },
   })
-  console.log('  ✓ Created 3 system plans')
+  console.log('  ✓ Created 3 system plans (Free, Pro, Enterprise)')
 
   // ── Plan Versions ──
   const planVersions = await Promise.all([
     prisma.planVersion.create({
-      data: { planId: starterPlan.id, version: 1, name: 'Starter v1',
+      data: { planId: freePlan.id, version: 1, name: 'Free v1',
         features: JSON.stringify([
           { key: 'domain.poultry', name: 'Poultry OS', category: 'domain' },
           { key: 'module.flock-management', name: 'Flock Management', category: 'module' },
-          { key: 'ai.assistant', name: 'AI Assistant', category: 'ai' },
+          { key: 'ai.assistant', name: 'Basic AI Assistant', category: 'ai' },
         ]),
         limits: JSON.stringify([
           { key: 'members.active', value: 3, unit: 'member' },
           { key: 'api.requests', value: 5000, unit: 'request' },
           { key: 'ai.total_tokens', value: 100000, unit: 'token' },
+          { key: 'automations', value: 5, unit: 'workflow' },
         ]),
         seatAllowance: 3, aiTokenAllowance: 100000,
       },
     }),
     prisma.planVersion.create({
-      data: { planId: growthPlan.id, version: 1, name: 'Growth v1',
+      data: { planId: proPlan.id, version: 1, name: 'Pro v1',
         features: JSON.stringify([
           { key: 'domain.poultry', name: 'Poultry OS', category: 'domain' },
           { key: 'domain.restaurant', name: 'Restaurant OS', category: 'domain' },
           { key: 'module.flock-management', name: 'Flock Management', category: 'module' },
           { key: 'module.feed-management', name: 'Feed Management', category: 'module' },
           { key: 'module.menu-management', name: 'Menu Management', category: 'module' },
-          { key: 'ai.assistant', name: 'AI Assistant', category: 'ai' },
+          { key: 'ai.assistant', name: 'Advanced AI Assistant', category: 'ai' },
           { key: 'api.access', name: 'API Access', category: 'platform' },
-          { key: 'automation.workflows', name: 'Automation', category: 'platform' },
+          { key: 'automation.workflows', name: 'Unlimited Automations', category: 'platform' },
+          { key: 'webhooks.custom', name: 'Custom Webhooks', category: 'integration' },
         ]),
         limits: JSON.stringify([
-          { key: 'members.active', value: 10, unit: 'member' },
+          { key: 'members.active', value: -1, unit: 'member', description: 'Unlimited' },
           { key: 'api.requests', value: 50000, unit: 'request' },
           { key: 'ai.total_tokens', value: 1000000, unit: 'token' },
         ]),
-        seatAllowance: 10, aiTokenAllowance: 1000000,
+        seatAllowance: -1, aiTokenAllowance: 1000000,
       },
     }),
     prisma.planVersion.create({
@@ -646,22 +648,22 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
           { key: 'module.flock-management', name: 'Flock Management', category: 'module' },
           { key: 'module.feed-management', name: 'Feed Management', category: 'module' },
           { key: 'module.menu-management', name: 'Menu Management', category: 'module' },
-          { key: 'ai.assistant', name: 'AI Assistant', category: 'ai' },
+          { key: 'ai.assistant', name: 'Custom AI Models', category: 'ai' },
           { key: 'api.access', name: 'API Access', category: 'platform' },
-          { key: 'automation.workflows', name: 'Automation', category: 'platform' },
+          { key: 'automation.workflows', name: 'Unlimited Automations', category: 'platform' },
           { key: 'advanced.analytics', name: 'Advanced Analytics', category: 'addon' },
           { key: 'webhooks.custom', name: 'Custom Webhooks', category: 'integration' },
         ]),
         limits: JSON.stringify([
-          { key: 'members.active', value: 50, unit: 'member' },
-          { key: 'api.requests', value: 500000, unit: 'request' },
+          { key: 'members.active', value: -1, unit: 'member', description: 'Unlimited' },
+          { key: 'api.requests', value: -1, unit: 'request', description: 'Unlimited' },
           { key: 'ai.total_tokens', value: 10000000, unit: 'token' },
         ]),
-        seatAllowance: 50, aiTokenAllowance: 10000000,
+        seatAllowance: -1, aiTokenAllowance: 10000000,
       },
     }),
   ])
-  console.log(`  ✓ Created ${planVersions.length} plan versions`)
+  console.log(`  ✓ Created ${planVersions.length} plan versions (Free, Pro, Enterprise)`)
 
   // ── Usage Meters ──
   const usageMeters = await Promise.all([
@@ -678,21 +680,21 @@ Always use tools to get real data. Focus on actionable cost-saving insights.`,
   ])
   console.log(`  ✓ Created ${usageMeters.length} usage meters`)
 
-  // ── Subscription for Poultry Farm Co (Growth plan, active) ──
+  // ── Subscription for Poultry Farm Co (Free plan, trialing → auto-upgrade via checkout) ──
   const now = new Date()
   const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
   const subscription = await prisma.subscription.create({
     data: {
       organizationId: orgs[0].id,
-      planId: growthPlan.id,
-      planVersionId: planVersions[1].id, // Growth v1
+      planId: freePlan.id,
+      planVersionId: planVersions[0].id, // Free v1
       state: 'active',
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
       seatCount: 4,
     },
   })
-  console.log('  ✓ Created 1 active subscription (Growth)')
+  console.log('  ✓ Created 1 active subscription (Free)')
 
   // ── Sample Usage Records ──
   await Promise.all([

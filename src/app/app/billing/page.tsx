@@ -16,7 +16,7 @@ import { CreditCard, Receipt, Zap, TrendingUp, Check, Loader2, ArrowUpRight } fr
 // ── Types ──────────────────────────────────────────────
 type FeatureItem = { name: string; key: string; description?: string | null; type: string }
 type PlanData = {
-  id: string; name: string; status: string; billingCycle?: string
+  id: string; name: string; slug?: string; basePrice?: number; status: string; billingCycle?: string
   versions?: { id: string; version: number; status: string; priceMonthly: number; priceAnnual: number
     features: string | FeatureItem[] }[]
 }
@@ -45,7 +45,7 @@ function unwrap<T>(res: Response): Promise<T> {
 
 // ── Plan Card ─────────────────────────────────────────
 function PlanCard({ plan, isCurrent, onSelect }: {
-  plan: PlanData; isCurrent: boolean; onSelect: (planId: string, versionId: string) => void
+  plan: PlanData; isCurrent: boolean; onSelect: (planId: string, versionId: string, planSlug: string, basePrice: number) => void
 }) {
   const latestVersion = plan.versions?.[0]
   if (!latestVersion) return null
@@ -94,7 +94,7 @@ function PlanCard({ plan, isCurrent, onSelect }: {
           </ul>
         )}
         {!isCurrent && monthlyPrice > 0 && (
-          <Button className="w-full" variant="outline" onClick={() => onSelect(plan.id, latestVersion.id)}>
+          <Button className="w-full" variant="outline" onClick={() => onSelect(plan.id, latestVersion.id, plan.slug ?? '', plan.basePrice ?? 0)}>
             <ArrowUpRight className="h-4 w-4 mr-1" /> Upgrade
           </Button>
         )}
@@ -141,15 +141,38 @@ export default function BillingPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  const handleUpgrade = async (planId: string, versionId: string) => {
+  const handleUpgrade = async (planId: string, versionId: string, planSlug: string, basePrice: number) => {
     if (!activeOrganization || !subscription) return
     setUpgrading(true)
     try {
-      const res = await orgFetch(activeOrganization.id, '/api/billing/subscriptions', {
+      // Free plan: upgrade directly via subscription API
+      if (basePrice === 0) {
+        const res = await orgFetch(activeOrganization.id, '/api/billing/subscriptions', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'upgrade', subscriptionId: subscription.id, planVersionId: versionId }),
+        })
+        if (res.ok) fetchAll()
+        return
+      }
+
+      // Paid plan: redirect to Stripe Checkout
+      const res = await orgFetch(activeOrganization.id, '/api/billing/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ planSlug, billingCycle: 'monthly' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.data?.checkoutUrl) {
+          window.location.href = data.data.checkoutUrl
+          return
+        }
+      }
+      // Fallback: if checkout fails (e.g. Stripe not configured), use direct upgrade
+      const fallbackRes = await orgFetch(activeOrganization.id, '/api/billing/subscriptions', {
         method: 'POST',
         body: JSON.stringify({ action: 'upgrade', subscriptionId: subscription.id, planVersionId: versionId }),
       })
-      if (res.ok) fetchAll()
+      if (fallbackRes.ok) fetchAll()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to upgrade plan')
     } finally {
