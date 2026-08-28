@@ -1,16 +1,19 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Command Center: Domain View
-// Phase 19: Requires authentication. Domain listing is public data
-//   but enriched views require auth to prevent information leakage.
+// Requires platform admin authorization.
+// Exposes platform-wide domain catalog, org counts, and module inventories.
 // ══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/core/authorization'
+import { requirePlatformAdmin } from '@/lib/platform-admin'
 import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (request) => {
+export const GET = withAuth(async (request, ctx) => {
+  requirePlatformAdmin(ctx.user.email)
+
   const { searchParams } = request.nextUrl
   const domainSlug = searchParams.get('slug')
 
