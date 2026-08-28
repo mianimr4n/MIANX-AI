@@ -15,6 +15,7 @@ async function main() {
   await prisma.rolePermission.deleteMany()
   await prisma.teamMember.deleteMany()
   // Billing tables (depend on Organization, Plan, Subscription)
+  await prisma.payment.deleteMany()
   await prisma.usageRecord.deleteMany()
   await prisma.invoice.deleteMany()
   await prisma.subscription.deleteMany()
