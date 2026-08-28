@@ -21,6 +21,19 @@ export default function LoginPage() {
         }
       })
       .catch(() => {})
+
+    // Redirect authenticated users away from login
+    ;(async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          const params = new URLSearchParams(window.location.search)
+          window.location.href = params.get('redirect') || '/app'
+        }
+      } catch { /* not configured */ }
+    })()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {

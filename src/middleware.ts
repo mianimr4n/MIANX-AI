@@ -142,6 +142,31 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // 6. Server-side page route protection
+  // Protected routes require a Supabase auth session cookie.
+  // Supabase SSR stores session in cookies matching: sb-<project-ref>-auth-token
+  // In development without Supabase, the dev bypass headers are accepted.
+  const PROTECTED_PREFIXES = ['/app', '/admin', '/onboarding']
+  const isProtectedRoute = PROTECTED_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '/'))
+
+  if (isProtectedRoute && !isDev) {
+    const cookies = request.cookies
+    let hasAuthCookie = false
+    // Check for any Supabase auth token cookie (sb-xxx-auth-token)
+    for (const [name] of cookies) {
+      if (name.endsWith('-auth-token')) {
+        hasAuthCookie = true
+        break
+      }
+    }
+    if (!hasAuthCookie) {
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
   return response
 }
 
