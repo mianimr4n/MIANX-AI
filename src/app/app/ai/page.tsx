@@ -73,6 +73,7 @@ export default function AIPage() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legitimate early-exit: no org selected, nothing to load
     if (!activeOrganization) { setLoading(false); return }
     const orgId = activeOrganization.id
     const controller = new AbortController()

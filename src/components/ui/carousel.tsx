@@ -95,6 +95,7 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- shadcn carousel: syncing initial state from the Embla carousel API on mount, standard external-library subscription init
     onSelect(api)
     api.on("reInit", onSelect)
     api.on("select", onSelect)

@@ -40,6 +40,7 @@ export default function AdminDomainsPage() {
     }
   }, [limit])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern: async fetch sets loading/data state, not a synchronous render loop
   useEffect(() => { fetchDomains(page, search) }, [page, search, fetchDomains])
 
   const debouncedSearch = useDebouncedCallback((value: string) => {

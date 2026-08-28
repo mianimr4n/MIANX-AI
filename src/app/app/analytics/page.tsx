@@ -52,6 +52,7 @@ export default function AnalyticsPage() {
     }
   }, [activeOrganization, page, actionFilter])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern: async fetch sets loading/data state, not a synchronous render loop
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
   // Extract unique actions for filter

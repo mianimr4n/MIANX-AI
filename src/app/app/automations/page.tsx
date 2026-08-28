@@ -89,6 +89,7 @@ export default function AutomationsPage() {
   }, [activeOrganization, orgFetch])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legitimate early-exit: no org selected, nothing to load
     if (!activeOrganization) { setLoading(false); return }
     fetchWorkflows().finally(() => setLoading(false))
   }, [activeOrganization, fetchWorkflows])

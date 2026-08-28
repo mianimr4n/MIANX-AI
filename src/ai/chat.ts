@@ -167,7 +167,7 @@ export async function sendMessage(
   }
 
   const { conversationId: existingId, ...rest } = opts
-  let conversationId = existingId
+  let conversationId: string | undefined = existingId
 
   if (!conversationId) {
     const conv = await createConversation({
@@ -178,18 +178,22 @@ export async function sendMessage(
     })
     conversationId = conv.id
   }
+  if (!conversationId) {
+    throw new Error('Failed to resolve a conversation id')
+  }
+  const resolvedConversationId: string = conversationId
 
   await addMessage({
-    conversationId,
+    conversationId: resolvedConversationId,
     role: 'user',
     content: userMessage,
   })
 
   const stream = await streamChat(
-    { ...rest, conversationId },
+    { ...rest, conversationId: resolvedConversationId },
     context,
     userMessage
   )
 
-  return { conversationId, stream }
+  return { conversationId: resolvedConversationId, stream }
 }

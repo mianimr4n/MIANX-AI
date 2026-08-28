@@ -41,6 +41,7 @@ export default function AdminAuditPage() {
     }
   }, [limit])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern: async fetch sets loading/data state, not a synchronous render loop
   useEffect(() => { fetchLogs(page, actionFilter) }, [page, actionFilter, fetchLogs])
 
   return (

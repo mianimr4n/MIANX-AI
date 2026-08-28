@@ -62,7 +62,7 @@ const rateLimitedChat = withRateLimit(30, 60_000)(
     // Return the stream as a response
     return stream.toTextStreamResponse({
       headers: {
-        'X-Conversation-Id': convId,
+        'X-Conversation-Id': convId ?? '',
       },
     }) as unknown as NextResponse
   } catch (error) {

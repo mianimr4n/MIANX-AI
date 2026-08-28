@@ -160,6 +160,7 @@ function RolesTable({ orgId }: { orgId: string }) {
     }
   }, [orgId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern: async fetch sets loading/data state, not a synchronous render loop
   useEffect(() => { fetchRoles() }, [fetchRoles])
 
   if (loading) return <Skeleton className="h-48 w-full" />
@@ -218,6 +219,7 @@ export default function SettingsPage() {
   const [archiving, setArchiving] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legitimate early-exit: no org selected, nothing to load
     if (!activeOrganization) { setLoading(false); return }
     // Roles fetched by child component
     setLoading(false)
