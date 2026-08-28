@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/composite/empty-state'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOrganization } from '@/providers/organization-provider'
 import { useRouter } from 'next/navigation'
-import { Building2, Settings, Users, Blocks, Calendar } from 'lucide-react'
+import { Building2, Settings, Users, Blocks, Calendar, Bird } from 'lucide-react'
 
 export default function BusinessPage() {
   const { activeOrganization } = useOrganization()
@@ -27,6 +27,13 @@ export default function BusinessPage() {
     : 'N/A'
 
   const cards = [
+    {
+      icon: Bird,
+      title: 'Poultry OS',
+      description: 'Farms, sheds, flocks, feed, health, production, procurement, sales',
+      href: '/app/business/poultry',
+      detail: 'Manage your poultry operations end-to-end',
+    },
     {
       icon: Settings,
       title: 'Organization Settings',
@@ -90,7 +97,7 @@ export default function BusinessPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => (
           <Card
             key={card.href}

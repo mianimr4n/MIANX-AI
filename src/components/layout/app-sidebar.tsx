@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/sidebar'
 import {
   Home, Building2, Blocks, Bot, Workflow,
-  BarChart3, Globe, Users, CreditCard, Settings, Activity,
+  BarChart3, Globe, Users, CreditCard, Settings, Activity, Bird,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
 import { APP_VERSION } from '@/lib/constants'
@@ -32,6 +32,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: 'Home', icon: Home, href: '/app' },
   { title: 'My Business', icon: Building2, permission: 'organization.view', href: '/app/business' },
+  { title: 'Poultry OS', icon: Bird, permission: 'poultry.dashboard.view', href: '/app/business/poultry' },
   { title: 'Domains', icon: Blocks, permission: 'domain.view', href: '/app/domains' },
   { title: 'AI', icon: Bot, permission: 'ai.conversation.view', href: '/app/ai' },
   { title: 'Automations', icon: Workflow, permission: 'workflow.view', href: '/app/automations' },
