@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useOrganization } from '@/providers/organization-provider'
 import { useEffect, useState, useCallback } from 'react'
 import { CreditCard, Receipt, Zap, TrendingUp, Check, Loader2, ArrowUpRight } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ── Types ──────────────────────────────────────────────
 type FeatureItem = { name: string; key: string; description?: string | null; type: string }
@@ -174,7 +175,7 @@ export default function BillingPage() {
       })
       if (fallbackRes.ok) fetchAll()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to upgrade plan')
+      toast.error(err instanceof Error ? err.message : 'Failed to upgrade plan')
     } finally {
       setUpgrading(false)
     }

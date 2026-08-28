@@ -60,9 +60,10 @@ export default function AutomationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<WorkflowItem | null>(null)
 
   const orgFetch = useCallback((url: string, options?: RequestInit) => {
+    if (!activeOrganization) throw new Error('No organization selected')
     return fetch(url, {
       ...options,
-      headers: { 'X-Organization-Id': activeOrganization!.id, ...options?.headers },
+      headers: { 'X-Organization-Id': activeOrganization.id, ...options?.headers },
     })
   }, [activeOrganization])
 

@@ -11,6 +11,7 @@ import { useOrganization } from '@/providers/organization-provider'
 import { useDomain } from '@/providers/domain-provider'
 import { useEffect, useState } from 'react'
 import { Blocks, Plus, Settings } from 'lucide-react'
+import { toast } from 'sonner'
 
 type DomainData = {
   id: string
@@ -82,10 +83,13 @@ export default function DomainsPage() {
         body: JSON.stringify({ domainId }),
       })
       if (res.ok) {
+        toast.success('Domain activated successfully')
         window.location.reload()
+      } else {
+        toast.error('Failed to activate domain')
       }
     } catch {
-      // Error handled silently
+      toast.error('Failed to activate domain')
     } finally {
       setActivating(null)
     }

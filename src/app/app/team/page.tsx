@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useOrganization } from '@/providers/organization-provider'
 import { useEffect, useState, useCallback } from 'react'
 import { Users, Shield, UserPlus, Mail, Trash2, Loader2, X, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ── Types ──────────────────────────────────────────────
 type MemberData = {
@@ -205,7 +206,7 @@ export default function TeamPage() {
       await orgFetch(activeOrganization.id, `/api/memberships/${membershipId}`, { method: 'DELETE' })
       setMembers((prev) => prev.filter((m) => m.id !== membershipId))
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove member')
+      toast.error(err instanceof Error ? err.message : 'Failed to remove member')
     } finally {
       setRemoving(null)
     }

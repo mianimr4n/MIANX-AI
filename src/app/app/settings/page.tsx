@@ -63,8 +63,9 @@ function unwrap<T>(res: Response): Promise<T> {
 }
 
 // ── Edit Org Form ─────────────────────────────────────
-function OrgSettingsForm({ orgId, initialData, onUpdate }: {
+function OrgSettingsForm({ orgId, orgSlug, initialData, onUpdate }: {
   orgId: string
+  orgSlug: string
   initialData: { name: string; timezone: string; locale: string; currency: string }
   onUpdate: (data: { name: string; timezone: string; locale: string; currency: string }) => void
 }) {
@@ -106,7 +107,7 @@ function OrgSettingsForm({ orgId, initialData, onUpdate }: {
         </div>
         <div className="space-y-2">
           <Label>Slug (read-only)</Label>
-          <Input value={orgId.slice(0, 8) + '...'} disabled className="text-muted-foreground" />
+          <Input value={orgSlug} disabled className="text-muted-foreground" />
         </div>
         <div className="space-y-2">
           <Label>Timezone</Label>
@@ -271,6 +272,7 @@ export default function SettingsPage() {
             <CardContent>
               <OrgSettingsForm
                 orgId={activeOrganization.id}
+                orgSlug={activeOrganization.slug}
                 initialData={{
                   name: activeOrganization.name,
                   timezone: (activeOrganization as unknown as Record<string, string>).timezone || 'UTC',
