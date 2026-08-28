@@ -5,7 +5,8 @@
 // ══════════════════════════════════════════════════════════════════
 
 import { NextResponse } from 'next/server'
-import { withAuth } from '@/core/authorization'
+import { withAuth, type AuthContext } from '@/core/authorization'
+import { requirePlatformAdmin } from '@/lib/platform-admin'
 import { db } from '@/lib/db'
 import { metrics } from '@/core/observability'
 import { getActiveAlerts } from '@/core/observability/alerts'
@@ -14,7 +15,10 @@ import { getSLOStatus } from '@/core/observability/slo'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req: Request, ctx: AuthContext) => {
+  // Platform-wide metrics require platform admin access
+  requirePlatformAdmin(ctx.user.email)
+
   const startTime = Date.now()
 
   const metricsSummary = metrics.getSummary()
