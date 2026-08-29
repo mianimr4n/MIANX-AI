@@ -296,9 +296,9 @@ function HomeDashboard() {
               ) : health ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className={`h-3 w-3 rounded-full ${health.status === 'ok' ? 'bg-green-500' : 'bg-destructive'}`} />
+                    <div className={`h-3 w-3 rounded-full ${health.status === 'healthy' ? 'bg-green-500' : 'bg-destructive'}`} />
                     <span className="text-sm font-medium">
-                      {health.status === 'ok' ? 'All Systems Operational' : 'System Issues Detected'}
+                      {health.status === 'healthy' ? 'All Systems Operational' : 'System Issues Detected'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
