@@ -1,25 +1,14 @@
 # MIANX.AI — Production Deployment Workflow
-# Phase 15: CI → manual approve → Prisma migrate → deploy → health verify
-#
-# Flow:
-#   push to main → CI quality gates → manual approve → deploy → migrate → verify
-#
-# Prerequisites:
-#   - Repository secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
-#   - Server has docker compose installed
-#   - Server has .env.production configured with PostgreSQL DATABASE_URL
+# CI → production environment approval → migrate → deploy → live health verification
 
 name: Deploy
 
 on:
   workflow_run:
     workflows: ['CI']
-    types:
-      - completed
-    branches:
-      - main
+    types: [completed]
+    branches: [main]
 
-# Only one deployment at a time
 concurrency:
   group: production-deploy
   cancel-in-progress: false
@@ -28,7 +17,6 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    # Require CI to pass
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: production
@@ -46,22 +34,27 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            set -e
             cd /opt/mianx-ai
-            git pull origin main
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
             docker compose -f docker-compose.production.yml build
+            docker compose -f docker-compose.production.yml run --rm app bun run db:migrate:deploy
             docker compose -f docker-compose.production.yml up -d
             echo "Waiting for startup (30s)..."
             sleep 30
+            curl -fsS http://localhost:3000/api/health >/dev/null
 
-      - name: Health Verification
+      - name: Live Health Verification
+        env:
+          DEPLOY_URL: ${{ vars.DEPLOY_URL || 'https://app.mianx.ai' }}
         run: |
-          sleep 10
-          curl -sf ${{ vars.DEPLOY_URL || 'http://localhost:3000' }}/api/health \
-            || (echo "Health check failed" && exit 1)
+          set -e
+          curl -fsS "$DEPLOY_URL/api/health"
 
       - name: Notify Rollback on Failure
         if: failure()
         run: |
           echo "DEPLOYMENT FAILED"
           echo "Manual rollback required. See docs/deployment/05-rollback-runbook.md"
-          echo "Or run: git checkout HEAD~1 && docker compose -f docker-compose.production.yml up -d --build"
