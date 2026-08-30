@@ -1,49 +1,34 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Rate Limiting Abstraction
-// Phase 13: Pluggable rate limiting with in-memory and Redis backends.
+// Distributed rate limiting with an explicit production safety boundary.
 //
-// Architecture:
-//   RateLimitStore interface — pluggable storage backend
-//   InMemoryRateLimitStore — default for single-instance / dev
-//   RedisRateLimitStore — distributed, atomically incremented via INCR
-//   rateLimit() — main entry point, delegates to configured store
-//
-// Deployment modes:
-//   - Single instance (default): InMemory store, no external deps
-//   - Multiple instances / serverless: Set REDIS_URL → uses Redis store
-//     Requires: bun add ioredis (optional runtime dependency)
-//   - If Redis is configured but ioredis is missing or connection fails,
-//     falls back to in-memory and logs a warning (fail-safe, not fail-open)
+// Deployment rules:
+//   - Development/test: rate limiting is bypassed for local workflows.
+//   - Production + REDIS_URL: Redis is REQUIRED. Redis failure fails closed
+//     instead of silently falling back to process-local memory.
+//   - Production without REDIS_URL: process-local memory remains available
+//     for a deliberate single-instance deployment. Horizontal deployments
+//     MUST configure REDIS_URL.
 // ══════════════════════════════════════════════════════════════════
 
-export interface RateLimitEntry {
-  count: number
-  resetAt: number
-}
-
+export interface RateLimitEntry { count: number; resetAt: number }
 export interface RateLimitStore {
   get(key: string): Promise<RateLimitEntry | null>
   set(key: string, entry: RateLimitEntry): Promise<void>
   increment(key: string, windowMs: number): Promise<RateLimitEntry>
 }
-
-export interface RateLimitResult {
-  allowed: boolean
-  remaining: number
-  resetAt: number
-  limit: number
-}
+export interface RateLimitResult { allowed: boolean; remaining: number; resetAt: number; limit: number }
 
 class InMemoryRateLimitStore implements RateLimitStore {
   private store = new Map<string, RateLimitEntry>()
   private cleanupTimer: ReturnType<typeof setInterval> | null = null
   constructor() {
-    if (typeof globalThis !== 'undefined') {
-      this.cleanupTimer = setInterval(() => {
-        const now = Date.now()
-        for (const [key, entry] of this.store) if (now > entry.resetAt) this.store.delete(key)
-      }, 60_000)
-      if (typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) (this.cleanupTimer as unknown as { unref: () => void }).unref()
+    this.cleanupTimer = setInterval(() => {
+      const now = Date.now()
+      for (const [key, entry] of this.store) if (now > entry.resetAt) this.store.delete(key)
+    }, 60_000)
+    if (typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+      (this.cleanupTimer as unknown as { unref: () => void }).unref()
     }
   }
   async get(key: string): Promise<RateLimitEntry | null> {
@@ -75,15 +60,26 @@ class RedisRateLimitStore implements RateLimitStore {
   private keyPrefix = 'rl:'
   constructor(client: RedisClientLike) { this.client = client }
   async get(key: string): Promise<RateLimitEntry | null> {
-    try { const raw = await this.client.get(this.keyPrefix + key); if (!raw) return null; const parsed = JSON.parse(raw) as RateLimitEntry; if (Date.now() > parsed.resetAt) return null; return parsed } catch { return null }
+    const raw = await this.client.get(this.keyPrefix + key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as RateLimitEntry
+    if (Date.now() > parsed.resetAt) return null
+    return parsed
   }
-  async set(key: string, entry: RateLimitEntry): Promise<void> { await this.client.set(this.keyPrefix + key, JSON.stringify(entry), 'PX', Math.max(0, entry.resetAt - Date.now()), 'NX') }
-  async increment(key: string, windowMs: number): Promise<RateLimitEntry> { const redisKey = this.keyPrefix + key; const now = Date.now(); const count = await this.client.incr(redisKey); if (count === 1) await this.client.pexpire(redisKey, windowMs); return { count, resetAt: now + windowMs } }
+  async set(key: string, entry: RateLimitEntry): Promise<void> {
+    await this.client.set(this.keyPrefix + key, JSON.stringify(entry), 'PX', Math.max(0, entry.resetAt - Date.now()), 'NX')
+  }
+  async increment(key: string, windowMs: number): Promise<RateLimitEntry> {
+    const redisKey = this.keyPrefix + key; const now = Date.now(); const count = await this.client.incr(redisKey)
+    if (count === 1) await this.client.pexpire(redisKey, windowMs)
+    return { count, resetAt: now + windowMs }
+  }
   async destroy(): Promise<void> { try { await this.client.quit() } catch { /* ignore */ } }
 }
 
 let store: RateLimitStore | null = null
 let storeInitAttempted = false
+let storeInitError: Error | null = null
 
 async function tryCreateRedisStore(): Promise<RateLimitStore | null> {
   const redisUrl = process.env.REDIS_URL
@@ -94,8 +90,7 @@ async function tryCreateRedisStore(): Promise<RateLimitStore | null> {
     const client = new RedisFactory(redisUrl, { maxRetriesPerRequest: 1, connectTimeout: 2000, lazyConnect: true })
     await client.connect(); await client.ping(); return new RedisRateLimitStore(client)
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[rate-limit] REDIS_URL is set but Redis is unavailable: ${msg}. Falling back to in-memory rate limiting.`)
+    storeInitError = err instanceof Error ? err : new Error(String(err))
     return null
   }
 }
@@ -107,6 +102,11 @@ async function getStore(): Promise<RateLimitStore> {
     const redisStore = await tryCreateRedisStore()
     if (redisStore) { store = redisStore; return store }
   }
+  // A configured Redis backend is an explicit distributed-deployment
+  // contract. Never silently downgrade it to process-local memory.
+  if (process.env.NODE_ENV === 'production' && process.env.REDIS_URL && storeInitError) {
+    throw new Error('Distributed rate limiting is unavailable: configured Redis could not be reached.')
+  }
   if (!store) store = new InMemoryRateLimitStore()
   return store
 }
@@ -117,8 +117,19 @@ export async function rateLimit(key: string, maxRequests: number, windowMs: numb
   return { allowed: entry.count <= maxRequests, remaining: Math.max(0, maxRequests - entry.count), resetAt: entry.resetAt, limit: maxRequests }
 }
 
-export function buildRateLimitKey(request: Request, pathOverride?: string): string { const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'; const path = pathOverride || new URL(request.url).pathname; return `${ip}:${path}` }
-export function buildOrgRateLimitKey(request: Request, orgId: string, pathOverride?: string): string { const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'; const path = pathOverride || new URL(request.url).pathname; return `org:${orgId}:${ip}:${path}` }
+export function buildRateLimitKey(request: Request, pathOverride?: string): string {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const path = pathOverride || new URL(request.url).pathname
+  return `${ip}:${path}`
+}
+export function buildOrgRateLimitKey(request: Request, orgId: string, pathOverride?: string): string {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const path = pathOverride || new URL(request.url).pathname
+  return `org:${orgId}:${ip}:${path}`
+}
 
-export function _resetRateLimitStore(): void { if (store && 'destroy' in store) { const s = store as InMemoryRateLimitStore | RedisRateLimitStore; if (s instanceof InMemoryRateLimitStore) s.destroy(); else s.destroy() }; store = null; storeInitAttempted = false }
+export function _resetRateLimitStore(): void {
+  if (store && 'destroy' in store) { const s = store as InMemoryRateLimitStore | RedisRateLimitStore; void s.destroy() }
+  store = null; storeInitAttempted = false; storeInitError = null
+}
 export { InMemoryRateLimitStore, RedisRateLimitStore }
