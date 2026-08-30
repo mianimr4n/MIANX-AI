@@ -28,14 +28,6 @@ async function getOrCreateStripeCustomer(
       email,
       metadata: { organizationId, orgName },
     })
-
-    if (subscription) {
-      await db.subscription.update({
-        where: { organizationId },
-        data: { stripeCustomerId: customer.id },
-      })
-    }
-
     return customer.id
   } catch {
     return null
@@ -130,6 +122,16 @@ export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
           currentPeriodEnd: now,
           metadata: JSON.stringify({ checkoutPending: true }),
         },
+      })
+    }
+
+    // Persist the Stripe customer against the organization subscription even
+    // when this is the first checkout for the organization. This prevents
+    // duplicate Stripe customers on subsequent checkouts.
+    if (subscription.stripeCustomerId !== customerId) {
+      await db.subscription.update({
+        where: { organizationId: ctx.organizationId },
+        data: { stripeCustomerId: customerId },
       })
     }
 
