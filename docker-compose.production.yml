@@ -1,17 +1,14 @@
 # MIANX.AI — Production Docker Compose
-# Phase 15: Application + PostgreSQL + optional Redis
+# Application + PostgreSQL + Redis
 #
 # Usage:
 #   docker compose -f docker-compose.production.yml up -d
-#   docker compose -f docker-compose.production.yml logs -f app
-#   docker compose -f docker-compose.production.yml down
 #
-# Prerequisites:
-#   - .env.production file exists with required variables
-#   - For managed PostgreSQL (recommended): set DATABASE_URL to external host
-#     and remove/comment the postgres service below
-#   - For local PostgreSQL: ensure POSTGRES_PASSWORD is set in .env.production
-#   - Redis is optional (omit redis service and REDIS_URL if not needed)
+# Required in .env.production:
+#   POSTGRES_PASSWORD
+#   REDIS_PASSWORD
+#   DATABASE_URL / DIRECT_URL
+#   application secrets
 
 services:
   app:
@@ -48,15 +45,13 @@ services:
         max-size: "50m"
         max-file: "5"
 
-  # ── PostgreSQL (local/compose) ─────────────────────────
-  # For production, consider using a managed service (Supabase, Neon, RDS)
-  # and remove this service, setting DATABASE_URL to the managed endpoint.
   postgres:
     image: postgres:16-alpine
     container_name: mianx-postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
+    # Keep PostgreSQL internal to the Docker network; do not expose 5432 publicly.
+    expose:
+      - "5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mianx}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env.production}
@@ -70,19 +65,20 @@ services:
       retries: 5
     mem_limit: 1g
 
-  # ── Redis (optional — distributed rate limiting) ─────────
-  # Remove this service and REDIS_URL env var if not needed.
   redis:
     image: redis:7-alpine
     container_name: mianx-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # Redis is internal-only. Authentication is mandatory.
+    expose:
+      - "6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: ["sh", "-c", "redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env.production}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
       interval: 10s
       timeout: 3s
       retries: 3
