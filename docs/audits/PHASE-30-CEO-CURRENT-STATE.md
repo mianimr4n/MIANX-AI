@@ -12,7 +12,13 @@
 
 **Revenue state: IMPLEMENTED BUT NOT VERIFIED WITH REAL STRIPE.**
 
-The repository is no longer waiting for another broad code audit. The remaining work is split between engineering work that can be completed in the repository and owner/infrastructure work that requires real credentials, infrastructure access, legal decisions or real-money testing.
+This repository has moved beyond broad audit-only work. The remaining work is deliberately split between safe repository engineering and owner/infrastructure activation that requires real credentials, production access, legal approval or real-money testing.
+
+## Latest Safe Engineering Change
+
+Commit `ce05348cd8337d6da5c48ddae3a3893ee6ed9bb7` changes distributed rate limiting so that when `REDIS_URL` is explicitly configured in production, Redis failure no longer silently downgrades the application to process-local memory. This protects horizontally scaled deployments from an unnoticed rate-limit bypass.
+
+The repository also now contains `docs/operations/PRODUCTION-READINESS-CHECKLIST.md` as the operational launch gate.
 
 ## Verified Current Repository Facts
 
@@ -22,27 +28,49 @@ The repository is no longer waiting for another broad code audit. The remaining 
 - Caddy localhost-port SSRF was removed.
 - Public health information disclosure was reduced.
 - PostgreSQL/Redis production exposure was hardened.
-- Redis authentication configuration exists.
+- Redis authentication configuration exists in production Docker Compose.
 - Authenticated organization-aware AI rate limiting exists.
+- Configured Redis rate limiting now fails closed instead of silently falling back to memory in production.
 - Stripe Checkout, customer persistence, webhook handling, invoice/payment records and entitlement checks exist.
 - Password recovery and reset completion flows exist.
 - Pricing CTAs and Enterprise contact flow were corrected.
 - CI/deployment configuration contains production migration and live-health verification steps.
-- No open GitHub issues existed before this audit; issue #1 is now the canonical production activation tracker.
+- Production deployment path is Docker + SSH via GitHub Actions, with Caddy/server infrastructure outside the repository runtime.
 
-## Engineering Tasks — AI Team Owns
+## Engineering Tasks — Status
 
 ### P0
-1. Verify current HEAD in a clean runtime with TypeScript, ESLint, Prisma validation, unit/integration tests and production build.
-2. Add regression coverage for the first-organization flow, tenant isolation and billing webhook idempotency where gaps remain.
-3. Audit all monetary Prisma fields and migrate financial values from PostgreSQL `Float` to exact `Decimal/NUMERIC` with application arithmetic updated accordingly.
-4. Make distributed rate limiting a real production dependency: add and lock the Redis client or deliberately redesign the backend so production cannot silently fall back to process-local memory when horizontal scaling is enabled.
-5. Reconcile deployment configuration so the repository has one documented authoritative production path.
+
+1. **Clean-runtime quality verification — VERIFIED IN CI**
+   - CI executes install, Prisma validation/generation, lint, production typecheck, tests, tenant-isolation tests and standalone build.
+   - Latest pushed documentation commit triggered CI run `33337378365`; at the time of inspection it was still `in_progress`, so its final conclusion must not be invented.
+
+2. **Regression coverage — PARTIAL**
+   - Security and tenant-isolation coverage exists.
+   - Additional first-organization and webhook-idempotency coverage should continue where route-level gaps remain.
+
+3. **Financial precision — NOT YET APPLIED**
+   - Production schema still contains monetary `Float` fields in `Plan`, `Invoice`, `Payment` and poultry financial records.
+   - A live-safe Decimal migration must change the Prisma schema, application arithmetic and migration together. It must not be represented as complete until the schema and migration are atomically reconciled and verified.
+
+4. **Distributed rate limiting — PARTIALLY HARDENED**
+   - Production Redis is configured by Docker Compose.
+   - Production no longer silently falls back to memory when `REDIS_URL` is configured and Redis is unavailable.
+   - **Remaining engineering dependency:** the repository does not declare/lock `ioredis`, while the current implementation dynamically imports it. This must be resolved with a real locked dependency or a deliberately implemented supported Redis client before distributed Redis rate limiting can be called fully operational.
+
+5. **Deployment path — RECONCILED**
+   - Authoritative path is GitHub Actions CI → production environment approval → SSH → Docker Compose build → Prisma migration → application startup → local health check → live health check.
 
 ### P1
-6. Refresh stale production/go-live documentation.
-7. Add explicit operational readiness checks for backups, alerting, DR, retention and rollback.
-8. Continue security regression testing for IDOR, tenant isolation, webhook SSRF and admin authorization.
+
+6. **Production readiness documentation — DONE**
+   - `docs/operations/PRODUCTION-READINESS-CHECKLIST.md` is now the operational gate.
+
+7. **Operational checks — DOCUMENTED**
+   - Backup, restore, DR, rollback, alerting, retention, security and billing checks are explicitly listed.
+
+8. **Security regression — ONGOING**
+   - Continue IDOR, tenant isolation, webhook SSRF and admin authorization regression coverage as new endpoints are added.
 
 ## Owner / Infrastructure Tasks — User Must Provide or Approve
 
@@ -72,12 +100,6 @@ These cannot safely be invented by the AI team.
 - Refund/cancellation policy.
 - Support/contact ownership.
 - Backup retention target and operational owner.
-
-## Canonical Tracking
-
-- GitHub issue #1: production activation, DB, Supabase, Stripe, Redis and live E2E.
-- Phase 29 audit: `docs/audits/PHASE-29-CEO-AUDIT.md`.
-- This document: current owner-vs-engineering split.
 
 ## Revenue Path
 
