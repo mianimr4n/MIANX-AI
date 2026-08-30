@@ -1,10 +1,5 @@
 # MIANX.AI — CI Pipeline
-# Phase 12 → 15: Install → Generate → Lint → TypeCheck → Tests → Build
-#
-# Phase 15: Prisma schema now targets PostgreSQL (production).
-# prisma generate does NOT need a live database.
-# The build step uses a dummy DATABASE_URL with postgresql:// prefix
-# so Prisma client types match production.
+# Install → Generate → Lint → TypeCheck → Tests → Build
 
 name: CI
 
@@ -19,9 +14,8 @@ jobs:
     name: Quality Checks
     runs-on: ubuntu-latest
     env:
-      # Dummy PostgreSQL URL — prisma generate never connects to it.
-      # This ensures generated client types match production PostgreSQL.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_db"
+      DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci_db"
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
