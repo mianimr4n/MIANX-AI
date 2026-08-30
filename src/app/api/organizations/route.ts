@@ -3,24 +3,28 @@
 // GET  /api/organizations  — List user's organizations (requires auth)
 // POST /api/organizations  — Create organization (requires auth)
 // ══════════════════════════════════════════════════════════════════
-// Phase 22: GET now ALWAYS requires authentication (dev and prod).
-//   Dev users must pass X-Dev-User-Id + X-Dev-Org-Id headers (handled
-//   by the auth middleware's dev-mode bypass).
+// Phase 28: Neither route uses withAuth() — that helper unconditionally
+//   requires an X-Organization-Id header before invoking the handler,
+//   which made it impossible to ever list an empty org list or create
+//   your first organization ("Organization context required" error on
+//   every signup). Both routes resolve the authenticated user directly
+//   instead; org-scoped tenant isolation isn't relevant here since
+//   neither route reads or writes data belonging to an existing org.
 // ══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, withRateLimit } from '@/core/authorization'
+import { withRateLimit } from '@/core/authorization'
 import { slugify } from '@/core/tenancy/utils'
 import { provisionDefaultRoles } from '@/core/tenancy/provision-roles'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/organizations — List user's organizations (always auth required)
-export const GET = withAuth(async (request: NextRequest) => {
-  // At this point, middleware has resolved ctx — but we need to get orgs for the user.
-  // Use the withAuth wrapper which provides ctx, but we need the raw user ID.
-  // We re-import to get user orgs from the auth context.
+// GET /api/organizations — List user's organizations (requires auth, but NOT
+// an existing org — same reasoning as POST below: a user with zero orgs must
+// still be able to see that empty list, so this cannot go through withAuth,
+// which unconditionally requires X-Organization-Id before calling the handler.
+export const GET = async (request: NextRequest) => {
   const { searchParams } = request.nextUrl
   const cursor = searchParams.get('cursor')
   const rawLimit = parseInt(searchParams.get('limit') || '20', 10)
@@ -39,10 +43,20 @@ export const GET = withAuth(async (request: NextRequest) => {
     console.error('[GET /api/organizations]', error)
     return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 })
   }
-})
+}
 
-// POST /api/organizations — Create organization (always requires auth)
-export const POST = withRateLimit(10, 60_000)(withAuth(async (request, ctx) => {
+// POST /api/organizations — Create organization (requires an authenticated
+// user, but NOT an existing org — this is how the user's first org gets
+// created, so it cannot require X-Organization-Id like every other route.
+// withAuth() unconditionally requires that header; using it here would make
+// it impossible for anyone to ever create their first organization.
+export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
+  const { resolveCurrentUser } = await import('@/core/authorization')
+  const user = await resolveCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+
   const body = await request.json()
   const { name, timezone, locale, currency } = body
 
@@ -78,7 +92,7 @@ export const POST = withRateLimit(10, 60_000)(withAuth(async (request, ctx) => {
   const membership = await db.organizationMembership.create({
     data: {
       organizationId: organization.id,
-      userId: ctx.user.id,
+      userId: user.id,
       status: 'active',
     },
   })
@@ -90,4 +104,4 @@ export const POST = withRateLimit(10, 60_000)(withAuth(async (request, ctx) => {
   })
 
   return NextResponse.json({ data: organization }, { status: 201 })
-}))
+})
