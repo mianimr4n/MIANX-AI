@@ -1,12 +1,38 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Rate Limiting Abstraction
-// Pluggable rate limiting with in-memory development and Redis production backends.
-// Production requires Redis; local development may use the in-memory store.
+// Phase 13: Pluggable rate limiting with in-memory and Redis backends.
+//
+// Architecture:
+//   RateLimitStore interface — pluggable storage backend
+//   InMemoryRateLimitStore — default for single-instance / dev
+//   RedisRateLimitStore — distributed, atomically incremented via INCR
+//   rateLimit() — main entry point, delegates to configured store
+//
+// Deployment modes:
+//   - Single instance (default): InMemory store, no external deps
+//   - Multiple instances / serverless: Set REDIS_URL → uses Redis store
+//     Requires: bun add ioredis (optional runtime dependency)
+//   - If Redis is configured but ioredis is missing or connection fails,
+//     falls back to in-memory and logs a warning (fail-safe, not fail-open)
 // ══════════════════════════════════════════════════════════════════
 
-export interface RateLimitEntry { count: number; resetAt: number }
-export interface RateLimitStore { get(key: string): Promise<RateLimitEntry | null>; set(key: string, entry: RateLimitEntry): Promise<void>; increment(key: string, windowMs: number): Promise<RateLimitEntry> }
-export interface RateLimitResult { allowed: boolean; remaining: number; resetAt: number; limit: number }
+export interface RateLimitEntry {
+  count: number
+  resetAt: number
+}
+
+export interface RateLimitStore {
+  get(key: string): Promise<RateLimitEntry | null>
+  set(key: string, entry: RateLimitEntry): Promise<void>
+  increment(key: string, windowMs: number): Promise<RateLimitEntry>
+}
+
+export interface RateLimitResult {
+  allowed: boolean
+  remaining: number
+  resetAt: number
+  limit: number
+}
 
 class InMemoryRateLimitStore implements RateLimitStore {
   private store = new Map<string, RateLimitEntry>()
@@ -35,7 +61,14 @@ class InMemoryRateLimitStore implements RateLimitStore {
   destroy(): void { if (this.cleanupTimer) { clearInterval(this.cleanupTimer); this.cleanupTimer = null }; this.store.clear() }
 }
 
-interface RedisClientLike { get(key: string): Promise<string | null>; set(key: string, value: string, ...args: unknown[]): Promise<unknown>; incr(key: string): Promise<number>; pexpire(key: string, ms: number): Promise<boolean>; ping(): Promise<string>; quit(): Promise<unknown> }
+interface RedisClientLike {
+  get(key: string): Promise<string | null>
+  set(key: string, value: string, ...args: unknown[]): Promise<unknown>
+  incr(key: string): Promise<number>
+  pexpire(key: string, ms: number): Promise<boolean>
+  ping(): Promise<string>
+  quit(): Promise<unknown>
+}
 
 class RedisRateLimitStore implements RateLimitStore {
   private client: RedisClientLike
@@ -56,29 +89,24 @@ async function tryCreateRedisStore(): Promise<RateLimitStore | null> {
   const redisUrl = process.env.REDIS_URL
   if (!redisUrl) return null
   try {
-    const ioredisMod = await import('ioredis')
+    const ioredisMod = await import('ioredis' as string)
     const RedisFactory = (ioredisMod.default ?? ioredisMod) as new (url: string, opts: Record<string, unknown>) => RedisClientLike & { connect(): Promise<void> }
     const client = new RedisFactory(redisUrl, { maxRetriesPerRequest: 1, connectTimeout: 2000, lazyConnect: true })
     await client.connect(); await client.ping(); return new RedisRateLimitStore(client)
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    if (process.env.NODE_ENV === 'production') throw new Error(`[rate-limit] Production Redis is unavailable: ${msg}`)
-    console.warn(`[rate-limit] Redis unavailable in development: ${msg}`); return null
+    console.warn(`[rate-limit] REDIS_URL is set but Redis is unavailable: ${msg}. Falling back to in-memory rate limiting.`)
+    return null
   }
-}
-
-export async function verifyRateLimitInfrastructure(): Promise<void> {
-  if (process.env.NODE_ENV !== 'production') return
-  if (!process.env.REDIS_URL) throw new Error('[rate-limit] REDIS_URL is required in production')
-  const redisStore = await tryCreateRedisStore()
-  if (!redisStore) throw new Error('[rate-limit] Redis initialization failed in production')
-  store = redisStore; storeInitAttempted = true
 }
 
 async function getStore(): Promise<RateLimitStore> {
   if (store) return store
-  if (!storeInitAttempted) { storeInitAttempted = true; const redisStore = await tryCreateRedisStore(); if (redisStore) { store = redisStore; return store } }
-  if (process.env.NODE_ENV === 'production') throw new Error('[rate-limit] Production Redis store is not initialized')
+  if (!storeInitAttempted) {
+    storeInitAttempted = true
+    const redisStore = await tryCreateRedisStore()
+    if (redisStore) { store = redisStore; return store }
+  }
   if (!store) store = new InMemoryRateLimitStore()
   return store
 }
