@@ -1,8 +1,16 @@
-:81 {
-	reverse_proxy localhost:3000 {
+# MIANX.AI production reverse proxy.
+# Caddy manages HTTPS automatically for the public domains.
+
+app.mianx.ai {
+	encode gzip
+	reverse_proxy 127.0.0.1:3000 {
 		header_up Host {host}
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Real-IP {remote_host}
 	}
+}
+
+mianx.ai, www.mianx.ai {
+	redir https://app.mianx.ai{uri} permanent
 }
