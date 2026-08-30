@@ -2,244 +2,131 @@
 
 **Multi-Tenant AI-Native Business Operating System**
 
-MIANX.AI is a domain-extensible, multi-tenant business operating system built with modern web technologies. It provides a core platform with pluggable business domains, AI-powered agents, role-based access control, and automated workflow orchestration.
+MIANX.AI is a domain-extensible, multi-tenant business operating system with pluggable business domains, AI-powered agents, role-based access control, workflow orchestration, integrations and subscription billing.
 
-## Architecture Overview
+## Current Architecture
 
-MIANX.AI follows a **Domain OS** model — a core platform that hosts independent business domains as modular plugins. Each domain declares its capabilities through a typed manifest, registers API routes, permissions, and AI tools.
+MIANX.AI follows a **Domain OS** model: a domain-agnostic core hosts independently registered business domains. Each domain can declare capabilities, permissions, routes and AI tools.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    MIANX.AI Core                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐             │
-│  │ Tenancy  │ │   Auth   │ │  Domain  │             │
-│  │ Isolation│ │  / RBAC  │ │  Engine  │             │
-│  └──────────┘ └──────────┘ └──────────┘             │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐             │
-│  │ Billing  │ │   AI     │ │ Observ- │             │
-│  │/Subs     │ │ Platform │ │ ability │             │
-│  └──────────┘ └──────────┘ └──────────┘             │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐             │
-│  │ Workflows│ │Integration│ │  Audit   │             │
-│  └──────────┘ └──────────┘ └──────────┘             │
-├─────────────────────────────────────────────────────┤
-│              Domain Layer (Pluggable)                │
-│  ┌─────────────────────────────────────────┐        │
-│  │  Poultry Domain (reference implementation) │       │
-│  │  Farms, Sheds, Flocks, Feed, Health, ...  │       │
-│  └─────────────────────────────────────────┘        │
-└─────────────────────────────────────────────────────┘
-```
+Core platform areas include:
+
+- Multi-tenant organization isolation
+- Supabase authentication and server-side RBAC
+- Domain and module registry
+- AI provider abstraction and agent runtime
+- Workflow automation and jobs
+- Integrations, API keys, OAuth and webhooks
+- Subscription billing, Stripe Checkout, invoices and entitlements
+- Audit logs, structured observability and health checks
 
 ## Technology Stack
 
 | Layer | Technology |
 |---|---|
-| Runtime | [Bun](https://bun.sh/) 1.3+ |
-| Framework | [Next.js](https://nextjs.org/) 16 (App Router, Standalone) |
-| Language | TypeScript 5 (strict mode) |
-| Database | [Prisma](https://www.prisma.io/) 6 with SQLite (extensible to PostgreSQL) |
+| Runtime | Bun 1.3+ |
+| Framework | Next.js 16 App Router |
+| Language | TypeScript 5 strict mode |
+| Production database | PostgreSQL via Prisma 6 |
+| Local development database | SQLite via `prisma/schema.dev.prisma` |
 | UI | React 19, Tailwind CSS 4, shadcn/ui, Radix UI |
-| Auth | Supabase Auth (pluggable) |
-| AI | [Vercel AI SDK](https://sdk.vercel.ai/) 7 (OpenAI, Anthropic, Google) |
-| State | Zustand, TanStack Query/Table |
+| Auth | Supabase Auth |
+| AI | Vercel AI SDK with OpenAI, Anthropic and Google adapters |
 | Validation | Zod 4 |
-
-## Core Capabilities
-
-### Multi-Tenancy
-- Organization-scoped data isolation via Prisma query extension (`$allModels` + `$allOperations`)
-- `AsyncLocalStorage`-based tenant context propagation
-- 32 models with automatic `organizationId` filtering
-- Cross-tenant query override throws `TenantContextError`
-
-### Authorization (RBAC)
-- Permission system: `domain.resource.action` format
-- Wildcard matching (`*.*`, `*.view`, `organization.*`)
-- Owner bypass (defense in depth)
-- Fail-closed: missing authorization = automatic denial
-- Role-based permission aggregation
-
-### Domain Engine
-- Manifest-based plugin architecture (`mianx-domain/v1` schema)
-- Typed domain and module manifests with validation
-- Permission, route, and dependency declarations
-- Domain registration and activation per organization
-
-### AI Platform
-- Multi-provider support (OpenAI, Anthropic, Google) via Vercel AI SDK
-- Per-organization AI usage tracking and daily limits
-- Input validation (max 32K chars), token capping, monthly budget enforcement
-- Agent runtime with domain-specific tool registration
-
-### Observability
-- Structured JSON logging with Pino-compatible format
-- AI telemetry, SLO tracking, incident management
-- Health check endpoint (`/api/observability/health`)
-- Audit logging for compliance
-
-## Repository Structure
-
-```
-src/
-├── ai/                    # AI SDK configuration, tools, providers
-├── app/                   # Next.js App Router
-│   ├── api/              # 80 API routes (CRUD, AI, billing, etc.)
-│   └── (pages)/          # Frontend pages
-├── components/            # UI components (shadcn/ui, composite)
-├── core/                  # Platform core (domain-agnostic)
-│   ├── authorization/    # Auth context, permissions, RBAC middleware
-│   ├── automation/       # Event bus, workflow engine, job queue
-│   ├── billing/          # Subscriptions, invoices, entitlements
-│   ├── domain/           # Manifest types, validator, registry
-│   ├── integration/      # API keys, OAuth, webhooks
-│   ├── observability/    # Logger, metrics, SLO, alerts, incidents
-│   └── tenancy/          # Tenant context, Prisma extension, audit
-├── database/              # Prisma client, seeds
-├── domains/               # Business domain implementations
-│   └── poultry/          # Reference domain (farms, flocks, sales, etc.)
-├── hooks/                 # React hooks
-├── lib/                   # Utilities (DB, env, supabase, helpers)
-├── providers/             # React context providers
-└── stores/                # Zustand state stores
-
-prisma/                    # Database schema
-scripts/                   # Test and utility scripts
-docs/                      # Documentation
-├── domains/poultry/       # Poultry domain docs (10 files)
-└── production/            # Ops docs (env, backup, DR, go-live)
-tests/                     # Infrastructure test scripts
-.github/workflows/         # CI pipeline
-```
-
-## Getting Started
-
-### Prerequisites
-
-- [Bun](https://bun.sh/) 1.3+
-- A Supabase project (for auth) — optional in development mode
-
-### Installation
-
-```bash
-git clone https://github.com/mianimr4n/MIANX-AI.git
-cd MIANX-AI
-bun install
-```
-
-### Environment Setup
-
-```bash
-cp .env.example .env.local
-# Edit .env.local with your values
-```
-
-Required variables:
-- `DATABASE_URL` — SQLite connection string (e.g., `file:./db/dev.db`)
-
-Optional (for AI features):
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GOOGLE_GENERATIVE_AI_API_KEY`
-
-See [`.env.example`](.env.example) for the complete list.
-
-### Database Setup
-
-```bash
-# Generate Prisma client
-bun run db:generate
-
-# Push schema to database (development)
-bun run db:push
-
-# (Optional) Seed with sample data
-bunx tsx src/database/seeds/seed.ts
-```
-
-### Running the Application
-
-```bash
-# Development
-bun run dev
-
-# Production build
-bun run build
-bun run start
-```
-
-The application starts at `http://localhost:3000`.
-
-## Development Commands
-
-```bash
-bun run dev          # Start dev server (port 3000)
-bun run build        # Production build
-bun run start        # Start production server
-bun run lint         # Run ESLint
-bunx tsc --noEmit   # TypeScript type checking
-```
-
-### Testing
-
-```bash
-# Core tenant isolation tests (56 test cases)
-bun run scripts/test-tenant-isolation.ts
-
-# Unit tests (Bun test runner)
-bun test
-```
-
-### Prisma Commands
-
-```bash
-bun run db:generate   # Generate Prisma client
-bun run db:push      # Push schema changes (dev)
-bun run db:migrate   # Run migrations (production)
-bun run db:reset     # Reset database (destructive)
-```
-
-## Docker
-
-```bash
-# Build
- docker build -t mianx-ai .
-
-# Run
- docker run -p 3000:3000 -e DATABASE_URL='file:./db/prod.db' mianx-ai
-```
-
-The Dockerfile uses multi-stage builds with Bun, runs as non-root, and includes a health check.
-
-## CI/CD
-
-GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on push/PR to `main`:
-
-1. Install dependencies (`bun install --frozen-lockfile`)
-2. Generate Prisma client
-3. ESLint
-4. TypeScript type check (production mode)
-5. Tenant isolation tests
-6. Production build
+| Billing | Stripe Checkout + Stripe webhooks |
 
 ## Security Model
 
-- **Tenant Isolation**: Prisma extension auto-filters all queries by `organizationId`
-- **Authentication**: Supabase Auth with JWT verification
-- **Authorization**: Granular RBAC with `domain.resource.action` permissions
-- **AI Safety**: Input length limits, token budgets, provider configuration guards
-- **Production Hardening**: Dev-mode bypass headers blocked in production, security headers, CORS restrictions
-- **Environment Validation**: Zod-validated env config; invalid config is fatal in production
+- Organization-scoped tenant context with Prisma query extensions.
+- Server-side authentication and permission checks; frontend guards are not treated as authorization.
+- Fail-closed RBAC and platform-admin checks.
+- SSRF protection for outbound webhook URLs.
+- Authenticated, organization-aware AI rate limiting.
+- Production security headers and CSP.
+- Stripe webhook HMAC verification with timing-safe comparison and freshness checks.
+- No secrets committed to the repository.
 
-## Documentation
+## AI Safety
 
-- [Environment Security](docs/production/01-environment-security.md)
-- [Backup & Recovery](docs/production/02-backup-recovery.md)
-- [Disaster Recovery](docs/production/03-disaster-recovery.md)
-- [Go-Live Checklist](docs/production/04-go-live-checklist.md)
-- [Poultry Domain](docs/domains/poultry/01-domain-overview.md)
+AI requests are provider-routed through server-side abstractions. Controls include input validation, token budgets, organization-aware rate limiting, provider allowlisting, PII redaction and audit logging. Provider credentials belong in environment/secret management, never in source control.
 
-## Project Maturity
+## Billing / Revenue
 
-MIANX.AI has completed 11 development phases covering tenancy, authentication, authorization, domain engine, AI integration, observability, and production hardening. The platform is operational with one reference domain (Poultry) demonstrating the full domain extension model.
+The revenue system is implemented but requires real environment verification before public launch:
+
+- Free / Pro / Enterprise plans
+- Stripe Checkout
+- Stripe customer persistence
+- Subscription state machine
+- Stripe webhook handling and durable event idempotency
+- Invoice and payment records
+- Entitlement and usage checks
+- Billing UI and cancellation flow
+
+**Revenue status: IMPLEMENTED BUT NOT VERIFIED IN REAL STRIPE.** Production Stripe Price IDs, secrets, webhook configuration and an end-to-end test are still required.
+
+## Repository Structure
+
+```text
+src/
+├── ai/                    # AI SDK configuration, tools, providers
+├── app/                   # Next.js App Router and API routes
+├── components/            # UI components
+├── core/                  # Authorization, tenancy, billing, domains, automation, observability
+├── database/              # Prisma client and seeds
+├── domains/               # Business domain implementations
+├── hooks/                 # React hooks
+├── lib/                   # Infrastructure utilities
+├── providers/             # React providers
+└── stores/                # Client state
+
+prisma/                    # Production PostgreSQL and local SQLite schemas
+scripts/                   # Test and utility scripts
+docs/                      # Production, domain and audit documentation
+tests/                     # Test infrastructure
+.github/workflows/         # CI/CD
+```
+
+## Development
+
+```bash
+bun install
+cp .env.example .env.local
+bun run db:generate
+bun run db:generate:dev
+bun run db:push
+bun run dev
+```
+
+Production database validation/migrations use the PostgreSQL schema and `DIRECT_URL`:
+
+```bash
+bun run db:validate
+bun run db:migrate:deploy
+bun run build
+```
+
+Tests:
+
+```bash
+bun test
+bun run test:isolation
+```
+
+## Deployment
+
+The repository contains a Docker + Caddy production deployment path using PostgreSQL and Redis. The deployment workflow performs database migration before startup and then verifies the configured live health URL.
+
+The authoritative production target must be explicitly configured with its database, Supabase, Stripe, Redis and deployment secrets before public launch.
+
+## Current Readiness
+
+**Codebase:** substantially implemented and security-hardened.
+
+**Public production:** NOT READY until real production infrastructure is verified.
+
+**Revenue:** NOT READY until Stripe test-mode/live configuration and end-to-end payment flow are verified.
+
+The canonical current audit and activation checklist is tracked in `docs/audits/PHASE-29-CEO-AUDIT.md` and GitHub issue #1.
 
 ---
 
