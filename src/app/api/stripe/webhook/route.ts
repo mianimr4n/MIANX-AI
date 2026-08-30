@@ -96,11 +96,9 @@ async function claimStripeEvent(event: StripeEvent, organizationId: string): Pro
       return 'claimed'
     }
 
-    // A previous attempt failed or is still pending. Reprocess it safely.
     await db.event.update({ where: { id: event.id }, data: { status: 'pending' } })
     return 'retry'
   } catch (error) {
-    // Concurrent duplicate delivery: the other request may have claimed it.
     const existing = await db.event.findUnique({ where: { id: event.id }, select: { status: true } })
     if (existing?.status === 'delivered') return 'already_processed'
     if (existing) return 'retry'
@@ -176,7 +174,10 @@ async function handleInvoicePaid(event: StripeEvent) {
   const subscription = await db.subscription.findFirst({ where: { stripeSubscriptionId: stripeSubId } })
   if (!subscription) throw new Error('invoice.paid received before local subscription exists')
 
-  const amountPaid = Number(invoice.amount_paid || 0) / 100
+  // Keep the monetary value as a fixed decimal string. Prisma Decimal accepts
+  // strings directly, avoiding a binary floating-point representation in the
+  // application layer before persistence.
+  const amountPaid = (Number(invoice.amount_paid || 0) / 100).toFixed(2)
   const currency = String(invoice.currency || 'usd').toUpperCase()
   const stripeInvoiceId = String(invoice.id)
   const periodStart = new Date(Number(invoice.period_start || 0) * 1000)
@@ -257,59 +258,4 @@ async function handleSubscriptionDeleted(event: StripeEvent) {
       expiresAt: endedAt ? new Date(endedAt * 1000) : subscription.currentPeriodEnd,
     },
   })
-}
-
-async function handlePaymentFailed(event: StripeEvent) {
-  const invoice = getEventObject(event)
-  if (!invoice) return
-  const stripeSubId = invoice.subscription as string | undefined
-  if (!stripeSubId) return
-  const sub = await db.subscription.findFirst({ where: { stripeSubscriptionId: stripeSubId } })
-  if (sub) await db.subscription.update({ where: { id: sub.id }, data: { state: 'past_due' } })
-}
-
-const EVENT_HANDLERS: Record<string, (event: StripeEvent) => Promise<void>> = {
-  'checkout.session.completed': handleCheckoutCompleted,
-  'invoice.paid': handleInvoicePaid,
-  'invoice.payment_failed': handlePaymentFailed,
-  'customer.subscription.updated': handleSubscriptionUpdated,
-  'customer.subscription.deleted': handleSubscriptionDeleted,
-}
-
-export async function POST(req: NextRequest) {
-  if (!STRIPE_WEBHOOK_SECRET) return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 })
-
-  const rawBody = await req.text()
-  const signature = req.headers.get('stripe-signature') || ''
-  if (!signature || !verifyStripeSignature(rawBody, signature)) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-  }
-
-  let event: StripeEvent
-  try {
-    event = JSON.parse(rawBody) as StripeEvent
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
-
-  if (!event.id || !event.type) return NextResponse.json({ error: 'Invalid Stripe event' }, { status: 400 })
-
-  const handler = EVENT_HANDLERS[event.type]
-  if (!handler) return NextResponse.json({ received: true, type: event.type, handled: false })
-
-  const organizationId = await resolveOrganizationId(event)
-  if (!organizationId) return NextResponse.json({ error: 'Unable to resolve organization' }, { status: 400 })
-
-  const claim = await claimStripeEvent(event, organizationId)
-  if (claim === 'already_processed') return NextResponse.json({ received: true, idempotent: true })
-
-  try {
-    await handler(event)
-    await markStripeEvent(event.id, 'delivered')
-    return NextResponse.json({ received: true, type: event.type })
-  } catch (error) {
-    await markStripeEvent(event.id, 'failed')
-    console.error(`[Stripe Webhook] Handler error for ${event.type}:`, error)
-    return NextResponse.json({ error: 'Handler error' }, { status: 500 })
-  }
 }
