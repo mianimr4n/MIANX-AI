@@ -1,5 +1,5 @@
 # MIANX.AI — CI Pipeline
-# Install → Generate → Lint → TypeCheck → Tests → Build
+# Install → Generate → Lint → TypeCheck → Tests → Build → Production Compose Validation
 
 name: CI
 
@@ -40,6 +40,12 @@ jobs:
 
       - name: Tenant Isolation Tests
         run: bun run scripts/test-tenant-isolation.ts
+
+      - name: Validate production Docker Compose
+        env:
+          REDIS_PASSWORD: ci-redis-password
+          POSTGRES_PASSWORD: ci-postgres-password
+        run: docker compose -f docker-compose.production.yml config --quiet
 
       - name: Build (standalone)
         run: bun run build:standalone
