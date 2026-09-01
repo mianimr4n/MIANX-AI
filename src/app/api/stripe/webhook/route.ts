@@ -128,7 +128,7 @@ async function handleInvoicePaid(event: StripeEvent) {
   const subscription = await db.subscription.findFirst({ where: { stripeSubscriptionId: stripeSubId } })
   if (!subscription) throw new Error('invoice.paid received before local subscription exists')
 
-  const amountPaid = (Number(invoice.amount_paid || 0) / 100).toFixed(2)
+  const amountPaid = Number(invoice.amount_paid || 0) / 100
   const currency = String(invoice.currency || 'usd').toUpperCase()
   const stripeInvoiceId = String(invoice.id)
   const periodStart = new Date(Number(invoice.period_start || 0) * 1000)
