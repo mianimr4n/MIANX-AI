@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/core/authorization/middleware'
 import { db } from '@/lib/db'
 import { createSubscription, listSubscriptions, getSubscriptionByOrg, upgradeSubscription, cancelSubscription, transitionSubscription, handlePaymentFailed, handlePaymentSucceeded, checkDowngradeSafety, downgradeSubscription } from '@/core/billing/subscriptions'
+import { requirePlatformAdmin } from '@/lib/platform-admin'
 
 export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
   const { searchParams } = new URL(req.url)
   const state = searchParams.get('state') as any
   const listAll = searchParams.get('all') === 'true'
 
-  // Admin can list all subscriptions; regular users only see their org
-  if (listAll && ctx.permissions.includes('billing.metrics.admin')) {
+  if (listAll) {
+    requirePlatformAdmin(ctx.user.email)
     const subs = await listSubscriptions(state ? { state } : undefined)
     return NextResponse.json({ data: subs })
   }
@@ -22,8 +23,6 @@ export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
 export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
   const body = await req.json()
   const { action, ...params } = body
-
-  // Force organizationId from auth context, never from client
   const orgId = ctx.organizationId
 
   switch (action) {
@@ -32,7 +31,6 @@ export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
       return NextResponse.json({ data: result }, { status: 201 })
     }
     case 'cancel': {
-      // IDOR fix: verify subscription belongs to this org
       const sub = await db.subscription.findFirst({ where: { id: params.subscriptionId, organizationId: orgId } })
       if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
       return NextResponse.json({ data: await cancelSubscription(params.subscriptionId, params.immediate) })
