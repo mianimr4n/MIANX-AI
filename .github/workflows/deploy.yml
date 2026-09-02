@@ -39,9 +39,11 @@ jobs:
             git fetch origin main
             git checkout main
             git reset --hard origin/main
+            docker compose -f docker-compose.production.yml pull
             docker compose -f docker-compose.production.yml build
             docker compose -f docker-compose.production.yml run --rm app bun run db:migrate:deploy
             docker compose -f docker-compose.production.yml up -d
+            docker image prune -f
             echo "Waiting for startup (30s)..."
             sleep 30
             curl -fsS http://localhost:3000/api/health >/dev/null
