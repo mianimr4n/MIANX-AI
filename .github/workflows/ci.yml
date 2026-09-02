@@ -41,6 +41,20 @@ jobs:
       - name: Tenant Isolation Tests
         run: bun run scripts/test-tenant-isolation.ts
 
+      - name: Prepare production env for Compose validation
+        run: |
+          cat > .env.production <<'EOF'
+          NODE_ENV=production
+          NEXT_PUBLIC_APP_URL=https://app.mianx.ai
+          DATABASE_URL=postgresql://ci:ci@localhost:5432/ci_db
+          DIRECT_URL=postgresql://ci:ci@localhost:5432/ci_db
+          REDIS_URL=redis://:ci-redis-password@redis:6379
+          REDIS_PASSWORD=ci-redis-password
+          POSTGRES_USER=ci
+          POSTGRES_PASSWORD=ci-postgres-password
+          POSTGRES_DB=ci_db
+          EOF
+
       - name: Validate production Docker Compose
         env:
           REDIS_PASSWORD: ci-redis-password
