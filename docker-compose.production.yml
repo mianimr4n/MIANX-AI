@@ -9,7 +9,7 @@ services:
     container_name: mianx-ai
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env.production
     environment:
