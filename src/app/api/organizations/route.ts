@@ -4,12 +4,9 @@
 // POST /api/organizations  — Create organization (requires auth)
 // ══════════════════════════════════════════════════════════════════
 // Phase 28: Neither route uses withAuth() — that helper unconditionally
-//   requires an X-Organization-Id header before invoking the handler,
-//   which made it impossible to ever list an empty org list or create
-//   your first organization ("Organization context required" error on
-//   every signup). Both routes resolve the authenticated user directly
-//   instead; org-scoped tenant isolation isn't relevant here since
-//   neither route reads or writes data belonging to an existing org.
+// requires an X-Organization-Id header before invoking the handler,
+// which made it impossible to ever list an empty org list or create
+// your first organization. Both routes resolve the authenticated user directly.
 // ══════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db'
@@ -17,16 +14,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withRateLimit } from '@/core/authorization'
 import { slugify } from '@/core/tenancy/utils'
 import { provisionDefaultRoles } from '@/core/tenancy/provision-roles'
+import { provisionFreeSubscription } from '@/core/billing/provision-free'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/organizations — List user's organizations (requires auth, but NOT
-// an existing org — same reasoning as POST below: a user with zero orgs must
-// still be able to see that empty list, so this cannot go through withAuth,
-// which unconditionally requires X-Organization-Id before calling the handler.
 export const GET = async (request: NextRequest) => {
   const { searchParams } = request.nextUrl
-  const cursor = searchParams.get('cursor')
   const rawLimit = parseInt(searchParams.get('limit') || '20', 10)
   const limit = Math.min(Math.max(rawLimit, 1), 100)
 
@@ -38,18 +31,13 @@ export const GET = async (request: NextRequest) => {
 
   try {
     const orgs = await getUserOrganizations(user.id)
-    return NextResponse.json({ data: orgs })
+    return NextResponse.json({ data: orgs.slice(0, limit) })
   } catch (error) {
     console.error('[GET /api/organizations]', error)
     return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 })
   }
 }
 
-// POST /api/organizations — Create organization (requires an authenticated
-// user, but NOT an existing org — this is how the user's first org gets
-// created, so it cannot require X-Organization-Id like every other route.
-// withAuth() unconditionally requires that header; using it here would make
-// it impossible for anyone to ever create their first organization.
 export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
   const { resolveCurrentUser } = await import('@/core/authorization')
   const user = await resolveCurrentUser()
@@ -68,8 +56,6 @@ export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
   }
 
   const slug = slugify(name)
-
-  // Check slug uniqueness
   const existing = await db.organization.findUnique({ where: { slug } })
   if (existing) {
     return NextResponse.json(
@@ -88,7 +74,6 @@ export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
     },
   })
 
-  // Auto-create owner membership for the creator
   const membership = await db.organizationMembership.create({
     data: {
       organizationId: organization.id,
@@ -97,11 +82,24 @@ export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
     },
   })
 
-  // Provision org-scoped Owner/Admin/Member/Viewer roles
   const { ownerRoleId } = await provisionDefaultRoles(organization.id)
   await db.membershipRole.create({
     data: { membershipId: membership.id, roleId: ownerRoleId },
   })
+
+  // Every organization starts with the active Free plan so the first session
+  // has a valid entitlement state before the customer chooses to upgrade.
+  try {
+    await provisionFreeSubscription(organization.id)
+  } catch (error) {
+    // Do not silently create a partially-provisioned commercial tenant.
+    // The organization and membership remain inspectable for remediation.
+    console.error('[POST /api/organizations] free subscription provisioning failed', error)
+    return NextResponse.json(
+      { error: 'Organization created but billing setup could not be completed' },
+      { status: 500 }
+    )
+  }
 
   return NextResponse.json({ data: organization }, { status: 201 })
 })
