@@ -71,7 +71,6 @@ export const POST = withAuthParams(async (request: NextRequest, ctx: AuthContext
     return NextResponse.json({ error: 'membershipId is required' }, { status: 400 })
   }
 
-  // Verify the membership belongs to the same org
   const membership = await db.organizationMembership.findFirst({
     where: { id: membershipId, organizationId: ctx.organizationId },
   })
@@ -79,7 +78,6 @@ export const POST = withAuthParams(async (request: NextRequest, ctx: AuthContext
     return NextResponse.json({ error: 'Membership not found in this organization' }, { status: 404 })
   }
 
-  // Check not already in team
   const existing = await db.teamMember.findFirst({
     where: { teamId: id, membershipId },
   })
@@ -96,6 +94,14 @@ export const POST = withAuthParams(async (request: NextRequest, ctx: AuthContext
 
 // DELETE /api/teams/:id/members — Remove member from team
 export const DELETE = withAuthParams(async (request: NextRequest, ctx: AuthContext, { id }) => {
+  const team = await db.team.findFirst({
+    where: { id, organizationId: ctx.organizationId },
+    select: { id: true },
+  })
+  if (!team) {
+    return NextResponse.json({ error: 'Team not found' }, { status: 404 })
+  }
+
   const body = await request.json()
   const { membershipId } = body
 
