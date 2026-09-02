@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════
 // MIANX.AI — Global Domains API
 // Platform-level: domains are NOT tenant-scoped (they're global manifests)
-// Phase 19: GET is public (domain discovery). POST requires authentication.
+// Phase 19: GET is public (domain discovery). POST requires platform admin.
 // ══════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,6 +9,7 @@ import { createDomain, listDomains } from '@/core/domain'
 import { apiEnvelope } from '@/core/tenancy/utils'
 import type { DomainManifest } from '@/core/domain'
 import { withAuth, withRateLimit } from '@/core/authorization'
+import { requirePlatformAdmin } from '@/lib/platform-admin'
 
 /** GET /api/domains — List all global domains */
 export async function GET(request: NextRequest) {
@@ -29,9 +30,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/domains — Create a new global domain (requires auth + rate limit) */
-export const POST = withRateLimit(5, 60_000)(withAuth(async (request, _ctx) => {
+/** POST /api/domains — Create a new global domain (platform admin only + rate limit) */
+export const POST = withRateLimit(5, 60_000)(withAuth(async (request, ctx) => {
   try {
+    requirePlatformAdmin(ctx.user.email)
+
     const body = await request.json()
     const { name, slug, version, description, manifest, status } = body
 
