@@ -60,11 +60,17 @@ class RedisRateLimitStore implements RateLimitStore {
   private keyPrefix = 'rl:'
   constructor(client: RedisClientLike) { this.client = client }
   async get(key: string): Promise<RateLimitEntry | null> {
-    const raw = await this.client.get(this.keyPrefix + key)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as RateLimitEntry
-    if (Date.now() > parsed.resetAt) return null
-    return parsed
+    try {
+      const raw = await this.client.get(this.keyPrefix + key)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as RateLimitEntry
+      if (Date.now() > parsed.resetAt) return null
+      return parsed
+    } catch {
+      // Reads are advisory; callers that need enforcement use increment(),
+      // which intentionally propagates Redis failures and therefore fails closed.
+      return null
+    }
   }
   async set(key: string, entry: RateLimitEntry): Promise<void> {
     await this.client.set(this.keyPrefix + key, JSON.stringify(entry), 'PX', Math.max(0, entry.resetAt - Date.now()), 'NX')
@@ -102,8 +108,6 @@ async function getStore(): Promise<RateLimitStore> {
     const redisStore = await tryCreateRedisStore()
     if (redisStore) { store = redisStore; return store }
   }
-  // A configured Redis backend is an explicit distributed-deployment
-  // contract. Never silently downgrade it to process-local memory.
   if (process.env.NODE_ENV === 'production' && process.env.REDIS_URL && storeInitError) {
     throw new Error('Distributed rate limiting is unavailable: configured Redis could not be reached.')
   }
