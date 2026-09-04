@@ -161,6 +161,11 @@ export async function resolveDevAuthContext(
 
 /**
  * Get all organizations a user has access to.
+ *
+ * The public API contract is a list of organization objects. Membership
+ * details remain authorization data, but must not wrap the organization in
+ * an extra `organization` property because the app provider consumes direct
+ * organization fields (`id`, `name`, `slug`, `_count`, etc.).
  */
 export async function getUserOrganizations(userId: string) {
   const memberships = await db.organizationMembership.findMany({
@@ -179,8 +184,7 @@ export async function getUserOrganizations(userId: string) {
   })
 
   return memberships.map(m => ({
-    id: m.id,
-    organization: m.organization,
+    ...m.organization,
     roles: m.roles.map(mr => mr.role),
     joinedAt: m.joinedAt,
   }))
