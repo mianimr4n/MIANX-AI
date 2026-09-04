@@ -74,6 +74,21 @@ export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
     },
   })
 
+  // OrganizationMembership.userId is a foreign key to Profile.userId, NOT
+  // directly to the Supabase auth user — so a Profile row must exist first.
+  // Nothing else provisions one on a user's own first login/signup (only
+  // the member-invite path does), so self-serve org creation was failing
+  // with a P2003 foreign key violation on OrganizationMembership_userId_fkey
+  // for every brand-new user. Upsert is safe/idempotent for existing users.
+  await db.profile.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
+      userId: user.id,
+      displayName: user.email ? user.email.split('@')[0] : `User ${user.id.slice(0, 6)}`,
+    },
+  })
+
   const membership = await db.organizationMembership.create({
     data: {
       organizationId: organization.id,
