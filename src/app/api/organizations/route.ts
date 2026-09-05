@@ -15,6 +15,7 @@ import { withRateLimit } from '@/core/authorization'
 import { slugify } from '@/core/tenancy/utils'
 import { provisionDefaultRoles } from '@/core/tenancy/provision-roles'
 import { provisionFreeSubscription } from '@/core/billing/provision-free'
+import type { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,42 +65,53 @@ export const POST = withRateLimit(10, 60_000)(async (request: NextRequest) => {
     )
   }
 
-  const organization = await db.organization.create({
-    data: {
-      name: name.trim(),
-      slug,
-      timezone: timezone || 'UTC',
-      locale: locale || 'en',
-      currency: currency || 'USD',
-    },
-  })
+  // Phase 30: everything up to and including role assignment happens in a
+  // single transaction. Previously these were separate calls — if any step
+  // after organization.create() failed (as happened live: a Profile FK
+  // violation, and separately a mid-deploy race), the Organization row was
+  // left behind permanently orphaned (no membership, no owner), and because
+  // its slug is unique, the user couldn't even retry with the same name.
+  // Two such orphaned organizations were found and removed during this audit.
+  const { organization } = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+    const organization = await tx.organization.create({
+      data: {
+        name: name.trim(),
+        slug,
+        timezone: timezone || 'UTC',
+        locale: locale || 'en',
+        currency: currency || 'USD',
+      },
+    })
 
-  // OrganizationMembership.userId is a foreign key to Profile.userId, NOT
-  // directly to the Supabase auth user — so a Profile row must exist first.
-  // Nothing else provisions one on a user's own first login/signup (only
-  // the member-invite path does), so self-serve org creation was failing
-  // with a P2003 foreign key violation on OrganizationMembership_userId_fkey
-  // for every brand-new user. Upsert is safe/idempotent for existing users.
-  await db.profile.upsert({
-    where: { userId: user.id },
-    update: {},
-    create: {
-      userId: user.id,
-      displayName: user.email ? user.email.split('@')[0] : `User ${user.id.slice(0, 6)}`,
-    },
-  })
+    // OrganizationMembership.userId is a foreign key to Profile.userId, NOT
+    // directly to the Supabase auth user — so a Profile row must exist first.
+    // Nothing else provisions one on a user's own first login/signup (only
+    // the member-invite path does), so self-serve org creation was failing
+    // with a P2003 foreign key violation on OrganizationMembership_userId_fkey
+    // for every brand-new user. Upsert is safe/idempotent for existing users.
+    await tx.profile.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: {
+        userId: user.id,
+        displayName: user.email ? user.email.split('@')[0] : `User ${user.id.slice(0, 6)}`,
+      },
+    })
 
-  const membership = await db.organizationMembership.create({
-    data: {
-      organizationId: organization.id,
-      userId: user.id,
-      status: 'active',
-    },
-  })
+    const membership = await tx.organizationMembership.create({
+      data: {
+        organizationId: organization.id,
+        userId: user.id,
+        status: 'active',
+      },
+    })
 
-  const { ownerRoleId } = await provisionDefaultRoles(organization.id)
-  await db.membershipRole.create({
-    data: { membershipId: membership.id, roleId: ownerRoleId },
+    const { ownerRoleId } = await provisionDefaultRoles(organization.id, tx)
+    await tx.membershipRole.create({
+      data: { membershipId: membership.id, roleId: ownerRoleId },
+    })
+
+    return { organization, membership }
   })
 
   // Every organization starts with the active Free plan so the first session
