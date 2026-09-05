@@ -10,6 +10,8 @@ export interface Org {
   currency: string
   _count: { memberships: number; teams: number; auditLogs: number }
   createdAt: string
+  roles?: { name: string; slug: string }[]
+  joinedAt?: string
 }
 
 interface OrganizationContextType {
@@ -28,6 +30,32 @@ export function useOrganization() {
   return ctx
 }
 
+function normalizeOrganizations(payload: unknown): Org[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : (payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
+      ? (payload as { data: unknown[] }).data
+      : [])
+
+  return rows.flatMap((row) => {
+    if (!row || typeof row !== 'object') return []
+    const item = row as { organization?: unknown }
+    const organization = item.organization && typeof item.organization === 'object'
+      ? item.organization
+      : row
+    if (!organization || typeof organization !== 'object') return []
+    const org = organization as Org
+    if (!org.id || !org.name || !org.slug) return []
+    return [{
+      ...org,
+      roles: Array.isArray((row as { roles?: unknown }).roles)
+        ? (row as { roles: { name: string; slug: string }[] }).roles
+        : org.roles,
+      joinedAt: (row as { joinedAt?: string }).joinedAt ?? org.joinedAt,
+    }]
+  })
+}
+
 export function OrganizationProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null)
@@ -37,12 +65,11 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     queryFn: async () => {
       const res = await fetch('/api/organizations')
       const json = await res.json()
-      // API returns { data: [...], meta: {...} }
-      return Array.isArray(json) ? json : (json.data ?? [])
+      if (!res.ok) throw new Error(json.error || 'Failed to fetch organizations')
+      return normalizeOrganizations(json)
     },
   })
 
-  // Derive active org: use explicit selection if set, otherwise first in list
   const activeOrganization = useMemo(() => {
     if (activeOrgId) return orgs.find(o => o.id === activeOrgId) ?? null
     return orgs[0] ?? null
@@ -55,7 +82,6 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         headers: { 'X-Organization-Id': activeOrganization!.id },
       })
       const json = await res.json()
-      // API returns { data: { all, grouped, userPermissions }, meta }
       if (json.data?.userPermissions) return json.data.userPermissions
       if (Array.isArray(json)) return json
       const perms = json.data ?? []
