@@ -21,12 +21,12 @@ export const coreNavItems: NavItem[] = [
   { id: 'home', title: 'Home', icon: Home, href: '#home', permission: undefined },
   { id: 'business', title: 'My Business', icon: Building2, href: '#business', permission: 'organization.view' },
   { id: 'domains', title: 'Domains', icon: Blocks, href: '#domains', permission: 'domain.view' },
-  { id: 'ai', title: 'AI', icon: Bot, href: '#ai', permission: 'ai.conversation.view' },
-  { id: 'automations', title: 'Automations', icon: Workflow, href: '#automations', permission: 'workflow.view' },
+  { id: 'ai', title: 'AI', icon: Bot, href: '#ai', permission: 'ai.conversations.view' },
+  { id: 'automations', title: 'Automations', icon: Workflow, href: '#automations', permission: 'automation.workflows.view' },
   { id: 'analytics', title: 'Analytics', icon: BarChart3, href: '#analytics', permission: 'organization.view' },
-  { id: 'integrations', title: 'Integrations', icon: Globe, href: '#integrations', permission: 'integration.view' },
-  { id: 'team', title: 'Team', icon: Users, href: '#team', permission: 'membership.view' },
-  { id: 'billing', title: 'Billing', icon: CreditCard, href: '#billing', permission: 'billing.view' },
+  { id: 'integrations', title: 'Integrations', icon: Globe, href: '#integrations', permission: 'integration.oauth.view' },
+  { id: 'team', title: 'Team', icon: Users, href: '#team', permission: 'team.view' },
+  { id: 'billing', title: 'Billing', icon: CreditCard, href: '#billing', permission: 'billing.plans.view' },
   { id: 'settings', title: 'Settings', icon: Settings, href: '#settings', permission: 'organization.update' },
 ]
 

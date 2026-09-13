@@ -34,12 +34,12 @@ const navItems: NavItem[] = [
   { title: 'My Business', icon: Building2, permission: 'organization.view', href: '/app/business' },
   { title: 'Poultry OS', icon: Bird, permission: 'poultry.dashboard.view', href: '/app/business/poultry' },
   { title: 'Domains', icon: Blocks, permission: 'domain.view', href: '/app/domains' },
-  { title: 'AI', icon: Bot, permission: 'ai.conversation.view', href: '/app/ai' },
-  { title: 'Automations', icon: Workflow, permission: 'workflow.view', href: '/app/automations' },
+  { title: 'AI', icon: Bot, permission: 'ai.conversations.view', href: '/app/ai' },
+  { title: 'Automations', icon: Workflow, permission: 'automation.workflows.view', href: '/app/automations' },
   { title: 'Analytics', icon: BarChart3, permission: 'organization.view', href: '/app/analytics' },
-  { title: 'Integrations', icon: Globe, permission: 'integration.view', href: '/app/integrations' },
-  { title: 'Team', icon: Users, permission: 'membership.view', href: '/app/team' },
-  { title: 'Billing', icon: CreditCard, permission: 'billing.view', href: '/app/billing' },
+  { title: 'Integrations', icon: Globe, permission: 'integration.oauth.view', href: '/app/integrations' },
+  { title: 'Team', icon: Users, permission: 'team.view', href: '/app/team' },
+  { title: 'Billing', icon: CreditCard, permission: 'billing.plans.view', href: '/app/billing' },
   { title: 'Settings', icon: Settings, permission: 'organization.update', href: '/app/settings' },
 ]
 

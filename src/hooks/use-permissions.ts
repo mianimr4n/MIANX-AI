@@ -1,7 +1,7 @@
 import { useOrganization } from '@/providers/organization-provider'
 
 export function usePermissions() {
-  const { permissions, activeOrganization } = useOrganization()
+  const { permissions, activeOrganization, permissionsLoading } = useOrganization()
 
   const hasPermission = (key: string): boolean => {
     if (!activeOrganization) return false
@@ -23,9 +23,14 @@ export function usePermissions() {
 
   const hasAnyPermission = (keys: string[]): boolean => keys.some(hasPermission)
 
-  // Permissions have loaded when an org is selected and the permissions array has been fetched
-  // (even if empty, meaning the user has no permissions yet)
-  const permissionsLoaded = !!activeOrganization
+  // Permissions have "loaded" once the org is known AND the permissions
+  // fetch itself has settled — not just "an org happens to be selected".
+  // Previously this was `!!activeOrganization`, which flipped true the
+  // instant an org existed even though the actual permissions array was
+  // still the default empty [] from before the fetch resolved (or from a
+  // swallowed fetch error) — sidebar items gated on hasPermission() would
+  // render as if the user had zero access.
+  const permissionsLoaded = !!activeOrganization && !permissionsLoading
 
   return { permissions, hasPermission, hasAnyPermission, activeOrganization, permissionsLoaded }
 }

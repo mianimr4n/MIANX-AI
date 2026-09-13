@@ -20,6 +20,7 @@ interface OrganizationContextType {
   setActiveOrganization: (id: string) => void
   permissions: string[]
   isLoading: boolean
+  permissionsLoading: boolean
 }
 
 const OrganizationContext = createContext<OrganizationContextType | null>(null)
@@ -75,13 +76,22 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     return orgs[0] ?? null
   }, [orgs, activeOrgId])
 
-  const { data: permissions = [] } = useQuery<string[]>({
+  const { data: permissions = [], isLoading: permissionsLoading } = useQuery<string[]>({
     queryKey: ['permissions', activeOrganization?.id],
     queryFn: async () => {
       const res = await fetch('/api/permissions', {
         headers: { 'X-Organization-Id': activeOrganization!.id },
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        // Previously this fell through to `json.data ?? []` on ANY failure
+        // (403, 500, malformed response), silently resolving to an empty
+        // permissions array — indistinguishable from "user genuinely has
+        // no permissions". That made the sidebar permanently render as if
+        // the user had zero access, with no visible error and no retry,
+        // even for an Owner with every permission in the database.
+        throw new Error(json.error || `Failed to fetch permissions (${res.status})`)
+      }
       if (json.data?.userPermissions) return json.data.userPermissions
       if (Array.isArray(json)) return json
       const perms = json.data ?? []
@@ -89,6 +99,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       return []
     },
     enabled: !!activeOrganization,
+    retry: 2,
   })
 
   const setActiveOrganization = useCallback((id: string) => {
@@ -99,7 +110,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
 
   return (
     <OrganizationContext.Provider
-      value={{ organizations: orgs, activeOrganization, setActiveOrganization, permissions, isLoading }}
+      value={{ organizations: orgs, activeOrganization, setActiveOrganization, permissions, isLoading, permissionsLoading }}
     >
       {children}
     </OrganizationContext.Provider>
