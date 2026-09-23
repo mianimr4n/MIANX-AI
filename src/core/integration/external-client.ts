@@ -5,8 +5,16 @@
  */
 
 import { db } from '@/lib/db';
+import { validateOutboundUrl } from '@/lib/url-safety';
 import type { OAuthProviderType, ExternalApiRequest, ExternalApiResponse } from './types';
 import { getOAuthConnection } from './oauth';
+
+async function assertSafeOutboundUrl(url: string): Promise<void> {
+  const result = await validateOutboundUrl(url);
+  if (!result.safe) {
+    throw new Error(`Outbound URL blocked: ${result.reason ?? 'unsafe destination'}`);
+  }
+}
 
 /**
  * Make an authenticated request to an external API using a stored OAuth connection.
@@ -21,7 +29,9 @@ export async function fetchWithOAuth<T = unknown>(
   provider: OAuthProviderType,
   request: ExternalApiRequest,
 ): Promise<ExternalApiResponse<T>> {
-  // Find the most recent active connection for this provider
+  // Validate the destination before attaching tenant OAuth credentials.
+  await assertSafeOutboundUrl(request.url);
+
   const connections = await db.oAuthConnection.findMany({
     where: { organizationId, provider, status: 'active' },
     orderBy: { updatedAt: 'desc' },
@@ -34,12 +44,10 @@ export async function fetchWithOAuth<T = unknown>(
 
   const connection = connections[0];
 
-  // Check token expiry
   if (connection.tokenExpiresAt && connection.tokenExpiresAt < new Date()) {
     throw new Error(`OAuth token for ${provider} has expired. Refresh required.`);
   }
 
-  // Update lastUsedAt
   db.oAuthConnection.update({
     where: { id: connection.id },
     data: { lastUsedAt: new Date() },
@@ -72,12 +80,7 @@ export async function fetchWithOAuth<T = unknown>(
     data = await response.text() as unknown as T;
   }
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    data,
-    headers: responseHeaders,
-  };
+  return { ok: response.ok, status: response.status, data, headers: responseHeaders };
 }
 
 /**
@@ -88,6 +91,9 @@ export async function fetchWithBearerToken<T = unknown>(
   request: ExternalApiRequest,
   token: string,
 ): Promise<ExternalApiResponse<T>> {
+  // Validate the destination before sending the caller-supplied bearer credential.
+  await assertSafeOutboundUrl(request.url);
+
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -115,10 +121,5 @@ export async function fetchWithBearerToken<T = unknown>(
     data = await response.text() as unknown as T;
   }
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    data,
-    headers: responseHeaders,
-  };
+  return { ok: response.ok, status: response.status, data, headers: responseHeaders };
 }
